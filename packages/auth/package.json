@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@app/db": "workspace:*",
-    "@t3-oss/env-core": "^0.13.8",
+    "@better-auth/sso": "^1.4.17",
+    "@t3-oss/env-core": "^0.13.10",
     "better-auth": "catalog:",
     "zod": "catalog:"
   },

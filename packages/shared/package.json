@@ -1,0 +1,34 @@
+{
+  "name": "@app/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./signing": "./src/signing.ts",
+    "./__tests__/signing.test": "./src/__tests__/signing.test.ts"
+  },
+  "autoexport": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "dev": "tsc",
+    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false"
+  },
+  "devDependencies": {
+    "@app/eslint-config": "workspace:*",
+    "@app/prettier-config": "workspace:*",
+    "@app/tsconfig": "workspace:*",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:"
+  },
+  "prettier": "@app/prettier-config",
+  "dependencies": {
+    "@app/types": "workspace:*",
+    "@app/validators": "workspace:*",
+    "@t3-oss/env-core": "^0.13.10"
+  }
+}

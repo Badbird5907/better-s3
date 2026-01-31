@@ -1,0 +1,9 @@
+# Local development environment variables for Cloudflare Worker
+# Copy this file to .dev.vars and fill in the actual values
+# .dev.vars is gitignored and contains your secrets
+
+# Signing secret for verifying signed URLs (must match Next.js SIGNING_SECRET)
+SIGNING_SECRET=your-secure-random-secret-here
+
+# Next.js callback URL for upload completion notifications
+NEXTJS_CALLBACK_URL=http://localhost:3000

@@ -7,6 +7,10 @@ import { nextCookies } from "better-auth/next-js";
 import { initAuth } from "@app/auth";
 
 import { env } from "@/env";
+import { nanoid } from "nanoid";
+import { db } from "@app/db/client";
+import { eq } from "@app/db";
+import { members,users } from "@app/db/schema";
 
 const baseUrl =
   env.VERCEL_ENV === "production"
@@ -27,7 +31,57 @@ export const auth = initAuth({
     }
   },
   extraPlugins: [nextCookies()],
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          await createDefaultOrganization(user)
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session) => {
+          return await setActiveOrganization(session)
+        },
+      },
+    },
+  },
 });
+
+
+async function createDefaultOrganization(
+  user: typeof auth.$Infer.Session.user
+) {
+  try {
+    const randomString = nanoid().slice(0, 8)
+    await auth.api.createOrganization({
+      body: {
+        userId: user.id,
+        name: `${user.name}'s Organization`,
+        slug: `${user.name
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .toLowerCase()}-org-${randomString}`,
+      },
+    })
+  } catch (err) {
+    await db.delete(users).where(eq(users.id, user.id))
+    throw err
+  }
+}
+
+async function setActiveOrganization(session: { userId: string }) {
+  const firstOrg = await db.select().from(members).where(eq(members.userId, session.userId)).limit(1)
+
+  return {
+    data: {
+      ...session,
+      activeOrganizationId: firstOrg[0]?.organizationId,
+    },
+  }
+}
 
 export const getSession = cache(async () =>
   auth.api.getSession({ headers: await headers() }),

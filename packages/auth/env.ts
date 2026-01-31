@@ -10,9 +10,15 @@ export function authEnv() {
         process.env.NODE_ENV === "production"
           ? z.string().min(1)
           : z.string().min(1).optional(),
+      DISABLE_SIGNUP: z.boolean().default(false),
+      DISABLE_ORG_CREATION: z.boolean().default(false),
       NODE_ENV: z.enum(["development", "production"]).optional(),
     },
-    runtimeEnv: process.env,
+    runtimeEnv: {
+      ...process.env,
+      DISABLE_SIGNUP: process.env.DISABLE_SIGNUP === "true",
+      DISABLE_ORG_CREATION: process.env.NEXT_PUBLIC_DISABLE_ORG_CREATION === "true",
+    },
     skipValidation:
       !!process.env.CI || process.env.npm_lifecycle_event === "lint",
   });

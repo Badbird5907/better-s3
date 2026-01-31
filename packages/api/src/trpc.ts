@@ -6,14 +6,16 @@
  * tl;dr - this is where all the tRPC server stuff is created and plugged in.
  * The pieces you will need to use are documented accordingly near the end
  */
+import type { Redis } from "@upstash/redis";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z, ZodError } from "zod/v4";
 
 import type { Auth, Session } from "@app/auth";
+import { and, eq } from "@app/db";
 import { db } from "@app/db/client";
+import { members, organizations } from "@app/db/schema";
 import { redis } from "@app/redis";
-import type { Redis } from "@upstash/redis";
 
 /**
  * 1. CONTEXT
@@ -47,7 +49,7 @@ export async function createTRPCContext(opts: {
     db,
     redis: redis(),
   };
-};
+}
 
 /**
  * 2. INITIALIZATION
@@ -132,6 +134,56 @@ export const protectedProcedure = t.procedure
       ctx: {
         // infers the `session` as non-nullable
         session: { ...ctx.session, user: ctx.session.user },
+      },
+    });
+  });
+
+/**
+ * Organization-scoped procedure
+ *
+ * Use this for routes that require an organizationId. It validates that:
+ * 1. The user is authenticated
+ * 2. The organization exists
+ * 3. The user is a member of the organization
+ *
+ * The organizationId and membership are added to the context.
+ */
+export const organizationProcedure = protectedProcedure
+  .input(z.object({ organizationId: z.string() }))
+  .use(async ({ ctx, input, next }) => {
+    // Get the organization
+    const organization = await ctx.db.query.organizations.findFirst({
+      where: eq(organizations.id, input.organizationId),
+    });
+
+    if (!organization) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Organization not found",
+      });
+    }
+
+    // Check if user is a member
+    const membership = await ctx.db.query.members.findFirst({
+      where: and(
+        eq(members.organizationId, input.organizationId),
+        eq(members.userId, ctx.session.user.id),
+      ),
+    });
+
+    if (!membership) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "You are not a member of this organization",
+      });
+    }
+
+    return next({
+      ctx: {
+        ...ctx,
+        organizationId: input.organizationId,
+        organization,
+        membership,
       },
     });
   });

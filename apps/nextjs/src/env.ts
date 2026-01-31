@@ -10,13 +10,16 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
+    DISABLE_ORG_CREATION: z.boolean().default(false),
   },
   /**
    * Specify your server-side environment variables schema here.
    * This way you can ensure the app isn't built with invalid env vars.
-   */
-  server: {
+  */
+ server: {
     POSTGRES_URL: z.url(),
+    WORKER_URL: z.url(),
+    SIGNING_SECRET: z.string().min(32),
   },
 
   /**
@@ -30,8 +33,8 @@ export const env = createEnv({
    * Destructure all variables from `process.env` to make sure they aren't tree-shaken away.
    */
   experimental__runtimeEnv: {
-    NODE_ENV: process.env.NODE_ENV,
-
+    ...process.env,
+    DISABLE_ORG_CREATION: process.env.NEXT_PUBLIC_DISABLE_ORG_CREATION === "true",
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   skipValidation:

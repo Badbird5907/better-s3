@@ -23,8 +23,11 @@
     "@app/redis": "workspace:*",
     "@app/types": "workspace:*",
     "@app/validators": "workspace:*",
+    "@t3-oss/env-core": "^0.13.10",
     "@trpc/server": "catalog:",
-    "@upstash/redis": "^1.35.8",
+    "@upstash/redis": "^1.36.1",
+    "drizzle-orm": "^0.44.7",
+    "nanoid": "^5.1.6",
     "superjson": "2.2.3",
     "zod": "catalog:"
   },

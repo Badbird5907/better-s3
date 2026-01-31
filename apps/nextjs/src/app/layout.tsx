@@ -4,9 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@app/ui/components/sonner";
 import { cn } from "@app/ui/lib/utils";
 
-import { AuthMenu } from "@/components/auth-menu";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { env } from "@/env";
 import { TRPCReactProvider } from "@/trpc/react";
 
@@ -19,10 +17,12 @@ export const metadata: Metadata = {
       : "http://localhost:3000",
   ),
   title: "Turbo Kit",
-  description: "Opinionated full-stack template for quickly bootstrapping a Next.js and turborepo app with tRPC, Drizzle, Shadcn/ui, Better Auth, and more.",
+  description:
+    "Opinionated full-stack template for quickly bootstrapping a Next.js and turborepo app with tRPC, Drizzle, Shadcn/ui, Better Auth, and more.",
   openGraph: {
     title: "Turbo Kit",
-    description: "Opinionated full-stack template for quickly bootstrapping a Next.js and turborepo app with tRPC, Drizzle, Shadcn/ui, Better Auth, and more.",
+    description:
+      "Opinionated full-stack template for quickly bootstrapping a Next.js and turborepo app with tRPC, Drizzle, Shadcn/ui, Better Auth, and more.",
     url: "https://turbo-kit.vercel.app",
     siteName: "Turbo Kit",
   },
@@ -61,16 +61,12 @@ export default function RootLayout(props: { children: React.ReactNode }) {
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
-          <div className="absolute top-4 right-4 z-50 flex items-center gap-4">
-            <AuthMenu />
-          </div>
           <TRPCReactProvider>{props.children}</TRPCReactProvider>
           <Toaster />
-          <ThemeToggle />
         </ThemeProvider>
       </body>
     </html>

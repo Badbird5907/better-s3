@@ -1,9 +1,12 @@
 import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { oAuthProxy } from "better-auth/plugins";
+import { oAuthProxy, organization } from "better-auth/plugins";
 
 import { db } from "@app/db/client";
+
+import { authEnv } from "../env";
+
 
 export function initAuth<
   TExtraPlugins extends BetterAuthPlugin[] = [],
@@ -11,29 +14,44 @@ export function initAuth<
   baseUrl: string;
   productionUrl: string;
   secret: string | undefined;
-  socialProviders: BetterAuthOptions['socialProviders'];
+  socialProviders: BetterAuthOptions["socialProviders"];
   extraPlugins?: TExtraPlugins;
+  databaseHooks?: BetterAuthOptions["databaseHooks"];
 }) {
+  const env = authEnv();
   const config = {
     database: drizzleAdapter(db, {
       provider: "pg",
-      usePlural: true
+      usePlural: true,
     }),
+    databaseHooks: options.databaseHooks ?? {},
     baseURL: options.baseUrl,
     secret: options.secret,
     plugins: [
       oAuthProxy({
         productionURL: options.productionUrl,
       }),
+      organization({
+        allowUserToCreateOrganization: () => !env.DISABLE_ORG_CREATION,
+      }),
       ...(options.extraPlugins ?? []),
     ],
-    socialProviders: Object.fromEntries(Object.entries(options.socialProviders ?? {}).map(([key, value]) => [key, {
-      clientId: value.clientId,
-      clientSecret: value.clientSecret,
-      redirectURI: value.redirectURI ?? `${options.productionUrl}/api/auth/callback/${key}`,
-    }])),
+    socialProviders: Object.fromEntries(
+      Object.entries(options.socialProviders ?? {}).map(([key, value]) => [
+        key,
+        {
+          clientId: value.clientId,
+          clientSecret: value.clientSecret,
+          redirectURI:
+            value.redirectURI ??
+            `${options.productionUrl}/api/auth/callback/${key}`,
+          disableImplicitSignUp: env.DISABLE_SIGNUP,
+        },
+      ]),
+    ),
     emailAndPassword: {
       enabled: true,
+      disableSignUp: !!env.DISABLE_SIGNUP,
     },
     onAPIError: {
       onError(error, ctx) {

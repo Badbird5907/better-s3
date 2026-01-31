@@ -6,7 +6,6 @@ import { LogoutForm } from "@/components/logout-form";
 export default async function LogoutPage() {
   const session = await getSession();
 
-  // If user is not logged in, redirect to login
   if (!session) {
     redirect("/login");
   }
