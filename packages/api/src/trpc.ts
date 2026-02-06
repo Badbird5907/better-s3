@@ -47,7 +47,7 @@ export async function createTRPCContext(opts: {
     authApi,
     session,
     db,
-    redis: redis(),
+    redis,
   };
 }
 

@@ -1,0 +1,68 @@
+import type { Bindings } from "../types/bindings";
+import type { ProjectInfo } from "../types/project";
+import { Errors } from "../utils/errors";
+
+export async function lookupProject(
+  slug: string,
+  env: Bindings,
+): Promise<ProjectInfo> {
+  const cacheKey = `project:slug:${slug}`;
+
+  try {
+    const cached = await env.TUS_METADATA.get(cacheKey, "json");
+    if (cached) {
+      return cached as ProjectInfo;
+    }
+  } catch (error) {
+    console.error("Failed to read from KV cache:", error);
+  }
+
+  try {
+    const response = await fetch(
+      `${env.NEXTJS_CALLBACK_URL}/api/internal/lookup-project-slug`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.CALLBACK_SECRET}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ slug }),
+      },
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw Errors.projectNotFound(slug);
+      }
+      throw new Error(
+        `Failed to lookup project: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const project: ProjectInfo = await response.json();
+
+    try {
+      await env.TUS_METADATA.put(cacheKey, JSON.stringify(project), {
+        expirationTtl: 3600, // 1h
+      });
+    } catch (error) {
+      console.error("Failed to write to KV cache:", error);
+    }
+
+    return project;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("project_not_found")) {
+      throw error;
+    }
+    console.error("Failed to lookup project:", error);
+    throw new Error("Failed to lookup project");
+  }
+}
+
+export async function invalidateProjectCache(
+  slug: string,
+  env: Bindings,
+): Promise<void> {
+  const cacheKey = `project:slug:${slug}`;
+  await env.TUS_METADATA.delete(cacheKey);
+}

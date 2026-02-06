@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
 import { eq } from "@app/db";
-import { projects } from "@app/db/schema";
+import { fileAccessTypes, projects } from "@app/db/schema";
 
 import { organizationProcedure } from "../trpc";
 
@@ -80,5 +80,50 @@ export const projectRouter = {
         .returning();
 
       return newProject;
+    }),
+
+  update: organizationProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).max(100).optional(),
+        defaultFileAccess: z.enum(fileAccessTypes.enumValues).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const project = await ctx.db.query.projects.findFirst({
+        where: eq(projects.id, input.id),
+      });
+
+      if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      if (project.parentOrganizationId !== ctx.organizationId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You don't have access to this project",
+        });
+      }
+
+      const updates: Partial<typeof projects.$inferInsert> = {};
+      if (input.name !== undefined) updates.name = input.name;
+      if (input.defaultFileAccess !== undefined)
+        updates.defaultFileAccess = input.defaultFileAccess;
+
+      if (Object.keys(updates).length === 0) {
+        return project;
+      }
+
+      const [updated] = await ctx.db
+        .update(projects)
+        .set(updates)
+        .where(eq(projects.id, input.id))
+        .returning();
+
+      return updated;
     }),
 } satisfies TRPCRouterRecord;

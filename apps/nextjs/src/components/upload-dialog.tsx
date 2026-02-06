@@ -1,0 +1,335 @@
+"use client";
+
+import * as React from "react";
+import { AlertCircle, CheckCircle2, FileUp, Upload, X } from "lucide-react";
+import * as tus from "tus-js-client";
+
+import { Button } from "@app/ui/components/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@app/ui/components/dialog";
+import { Input } from "@app/ui/components/input";
+import { Label } from "@app/ui/components/label";
+import { Progress } from "@app/ui/components/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@app/ui/components/select";
+
+interface Environment {
+  id: string;
+  name: string;
+  type: string;
+}
+
+interface UploadDialogProps {
+  projectId: string;
+  environments: Environment[];
+  onUploadComplete?: () => void;
+}
+
+type UploadStatus = "idle" | "preparing" | "uploading" | "success" | "error";
+
+interface UploadState {
+  status: UploadStatus;
+  progress: number;
+  error?: string;
+  accessKey?: string;
+}
+
+export function UploadDialog({
+  projectId,
+  environments,
+  onUploadComplete,
+}: UploadDialogProps) {
+  const [open, setOpen] = React.useState(false);
+  const [apiKey, setApiKey] = React.useState("");
+  const [selectedEnvId, setSelectedEnvId] = React.useState<string>("");
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [uploadState, setUploadState] = React.useState<UploadState>({
+    status: "idle",
+    progress: 0,
+  });
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const uploadRef = React.useRef<tus.Upload | null>(null);
+
+  React.useEffect(() => {
+    if (!open) {
+      const timeout = setTimeout(() => {
+        setSelectedFile(null);
+        setUploadState({ status: "idle", progress: 0 });
+      }, 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [open]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setUploadState({ status: "idle", progress: 0 });
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !apiKey || !selectedEnvId) return;
+
+    setUploadState({ status: "preparing", progress: 0 });
+
+    try {
+      const response = await fetch("/api/v1/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          projectId,
+          environmentId: selectedEnvId,
+          fileName: selectedFile.name,
+          size: selectedFile.size,
+          mimeType: selectedFile.type || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = (await response.json()) as { message?: string };
+        throw new Error(error.message ?? "Failed to get upload URL");
+      }
+
+      const { uploadUrl, accessKey } = (await response.json()) as {
+        uploadUrl: string;
+        accessKey: string;
+      };
+
+      setUploadState({ status: "uploading", progress: 0 });
+
+      const upload = new tus.Upload(selectedFile, {
+        endpoint: uploadUrl,
+        retryDelays: [0, 1000, 3000, 5000],
+        metadata: {
+          filename: selectedFile.name,
+          filetype: selectedFile.type,
+        },
+        onError: (error: { message?: string }) => {
+          console.error("Upload failed:", error);
+          setUploadState({
+            status: "error",
+            progress: 0,
+            error: error.message ?? "Upload failed",
+          });
+        },
+        onProgress: (bytesUploaded: number, bytesTotal: number) => {
+          const percentage = Math.round((bytesUploaded / bytesTotal) * 100);
+          setUploadState((prev) => ({
+            ...prev,
+            progress: percentage,
+          }));
+        },
+        onSuccess: () => {
+          setUploadState({
+            status: "success",
+            progress: 100,
+            accessKey,
+          });
+          onUploadComplete?.();
+        },
+      });
+
+      uploadRef.current = upload;
+      upload.start();
+    } catch (error) {
+      console.error("Upload error:", error);
+      setUploadState({
+        status: "error",
+        progress: 0,
+        error: error instanceof Error ? error.message : "Upload failed",
+      });
+    }
+  };
+
+  const handleCancel = () => {
+    if (uploadRef.current) {
+      void uploadRef.current.abort();
+      uploadRef.current = null;
+    }
+    setUploadState({ status: "idle", progress: 0 });
+  };
+
+  const canUpload =
+    apiKey && selectedEnvId && selectedFile && uploadState.status === "idle";
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Upload className="mr-2 h-4 w-4" />
+          Upload File
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Upload File</DialogTitle>
+          <DialogDescription>
+            Enter your API key and select a file to upload.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="api-key">API Key</Label>
+            <Input
+              id="api-key"
+              type="password"
+              placeholder="sk-bs3-..."
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              disabled={uploadState.status !== "idle"}
+            />
+            <p className="text-muted-foreground text-xs">
+              Your API key for this project. Get one from Project Settings &gt;
+              API Keys.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="environment">Environment</Label>
+            <Select
+              value={selectedEnvId}
+              onValueChange={setSelectedEnvId}
+              disabled={uploadState.status !== "idle"}
+            >
+              <SelectTrigger id="environment">
+                <SelectValue placeholder="Select environment" />
+              </SelectTrigger>
+              <SelectContent>
+                {environments.map((env) => (
+                  <SelectItem key={env.id} value={env.id}>
+                    {env.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>File</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleFileSelect}
+              disabled={uploadState.status !== "idle"}
+            />
+            {selectedFile ? (
+              <div className="bg-muted flex items-center justify-between rounded-lg border p-3">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <FileUp className="text-muted-foreground h-4 w-4 shrink-0" />
+                  <span className="truncate text-sm">{selectedFile.name}</span>
+                  <span className="text-muted-foreground shrink-0 text-xs">
+                    ({formatFileSize(selectedFile.size)})
+                  </span>
+                </div>
+                {uploadState.status === "idle" && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setSelectedFile(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadState.status !== "idle"}
+              >
+                <FileUp className="mr-2 h-4 w-4" />
+                Choose File
+              </Button>
+            )}
+          </div>
+
+          {(uploadState.status === "uploading" ||
+            uploadState.status === "preparing") && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span>
+                  {uploadState.status === "preparing"
+                    ? "Preparing..."
+                    : "Uploading..."}
+                </span>
+                <span>{uploadState.progress}%</span>
+              </div>
+              <Progress value={uploadState.progress} />
+            </div>
+          )}
+
+          {uploadState.status === "success" && (
+            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium">Upload complete!</p>
+                {uploadState.accessKey && (
+                  <p className="text-xs opacity-80">
+                    Access Key: {uploadState.accessKey.slice(0, 12)}...
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {uploadState.status === "error" && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium">Upload failed</p>
+                <p className="text-xs opacity-80">{uploadState.error}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          {uploadState.status === "uploading" ? (
+            <Button variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+          ) : uploadState.status === "success" ? (
+            <Button onClick={() => setOpen(false)}>Done</Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpload} disabled={!canUpload}>
+                <Upload className="mr-2 h-4 w-4" />
+                Upload
+              </Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}

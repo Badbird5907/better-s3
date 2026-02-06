@@ -105,8 +105,8 @@ export function MembersList({
       toast.success("Member removed successfully");
       void membersQuery.refetch();
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to remove member");
+    onError: (error: { message?: string }) => {
+      toast.error(error.message ?? "Failed to remove member");
     },
   });
 
@@ -131,8 +131,8 @@ export function MembersList({
       toast.success("Role updated successfully");
       void membersQuery.refetch();
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to update role");
+    onError: (error: { message?: string }) => {
+      toast.error(error.message ?? "Failed to update role");
     },
   });
 

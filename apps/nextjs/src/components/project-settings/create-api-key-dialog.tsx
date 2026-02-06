@@ -62,8 +62,8 @@ export function CreateApiKeyDialog({
         setCreatedKey(data.key);
         onCreated?.();
       },
-      onError: (error) => {
-        toast.error(error.message || "Failed to create API key");
+      onError: (error: { message?: string }) => {
+        toast.error(error.message ?? "Failed to create API key");
       },
     }),
   );

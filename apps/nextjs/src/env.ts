@@ -19,7 +19,9 @@ export const env = createEnv({
  server: {
     POSTGRES_URL: z.url(),
     WORKER_URL: z.url(),
+    WORKER_DOMAIN: z.string().min(1), // e.g., "files.evanyu.dev" (without protocol)
     SIGNING_SECRET: z.string().min(32),
+    CALLBACK_SECRET: z.string().min(32),
   },
 
   /**

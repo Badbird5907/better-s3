@@ -39,11 +39,11 @@ export default function ProjectsPage() {
   const createProjectMutation = useMutation(
     trpc.project.create.mutationOptions({
       onSuccess: () => {
-        projectsQuery.refetch();
+        void projectsQuery.refetch();
         toast.success("Project created successfully");
       },
-      onError: (error) => {
-        toast.error(error.message || "Failed to create project");
+      onError: (error: { message?: string }) => {
+        toast.error(error.message ?? "Failed to create project");
       },
     }),
   );

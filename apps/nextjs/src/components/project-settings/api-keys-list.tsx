@@ -1,8 +1,7 @@
 "use client";
 
-import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Copy, Globe, Key, MoreHorizontal, Trash2 } from "lucide-react";
+import { Globe, Key, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@app/ui/components/avatar";
@@ -71,21 +70,16 @@ export function ApiKeysList({ projectId, organizationId }: ApiKeysListProps) {
     trpc.apiKey.delete.mutationOptions({
       onSuccess: () => {
         toast.success("API key deleted successfully");
-        apiKeysQuery.refetch();
+        void apiKeysQuery.refetch();
       },
-      onError: (error) => {
-        toast.error(error.message || "Failed to delete API key");
+      onError: (error: { message?: string }) => {
+        toast.error(error.message ?? "Failed to delete API key");
       },
     }),
   );
 
   const handleDelete = (id: string) => {
     deleteMutation.mutate({ id, organizationId });
-  };
-
-  const handleCopyPrefix = async (prefix: string) => {
-    await navigator.clipboard.writeText(prefix);
-    toast.success("Key prefix copied to clipboard");
   };
 
   if (apiKeysQuery.isLoading) {
@@ -164,19 +158,9 @@ export function ApiKeysList({ projectId, organizationId }: ApiKeysListProps) {
                   <TableRow key={apiKey.id}>
                     <TableCell className="font-medium">{apiKey.name}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <code className="bg-muted rounded px-2 py-1 text-xs">
-                          {formatKeyPrefix(apiKey.keyPrefix)}
-                        </code>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleCopyPrefix(apiKey.keyPrefix)}
-                          title="Copy key prefix"
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      <code className="bg-muted rounded px-2 py-1 text-xs">
+                        {formatKeyPrefix(apiKey.keyPrefix)}
+                      </code>
                     </TableCell>
                     <TableCell>
                       {apiKey.environment ? (

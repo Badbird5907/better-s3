@@ -53,7 +53,7 @@ export function GeneralSettings({
       });
       if (result.error) {
         throw new Error(
-          result.error.message || "Failed to update organization",
+          result.error.message ?? "Failed to update organization",
         );
       }
       return result.data;
@@ -66,8 +66,8 @@ export function GeneralSettings({
         window.location.href = `/${slug}/settings`;
       }
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to update organization");
+    onError: (error: { message?: string }) => {
+      toast.error(error.message ?? "Failed to update organization");
     },
   });
 

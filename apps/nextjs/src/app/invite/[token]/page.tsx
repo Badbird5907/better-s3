@@ -39,7 +39,6 @@ export default function InvitePage({ params }: InvitePageProps) {
   const [loadingDetails, setLoadingDetails] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Fetch invitation details
   React.useEffect(() => {
     async function fetchInvitation() {
       try {
@@ -47,8 +46,8 @@ export default function InvitePage({ params }: InvitePageProps) {
           query: { id: token },
         });
         if (result.error) {
-          setError(result.error.message || "Invalid or expired invitation");
-        } else if (result.data) {
+          setError(result.error.message ?? "Invalid or expired invitation");
+        } else {
           setInvitationDetails({
             organizationName: result.data.organizationName,
             organizationSlug: result.data.organizationSlug,
@@ -62,7 +61,7 @@ export default function InvitePage({ params }: InvitePageProps) {
         setLoadingDetails(false);
       }
     }
-    fetchInvitation();
+    void fetchInvitation();
   }, [token]);
 
   const acceptMutation = useMutation({
@@ -71,7 +70,7 @@ export default function InvitePage({ params }: InvitePageProps) {
         invitationId: token,
       });
       if (result.error) {
-        throw new Error(result.error.message || "Failed to accept invitation");
+        throw new Error(result.error.message ?? "Failed to accept invitation");
       }
       return result.data;
     },
@@ -83,8 +82,8 @@ export default function InvitePage({ params }: InvitePageProps) {
         router.push("/");
       }
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to accept invitation");
+    onError: (error: { message?: string }) => {
+      toast.error(error.message ?? "Failed to accept invitation");
     },
   });
 

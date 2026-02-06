@@ -7,7 +7,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@app/ui/components/skeleton";
 
 import { PageHeader } from "@/components/page-header";
-import { ApiKeysList } from "@/components/project-settings";
+import {
+  ApiKeysList,
+  ProjectGeneralSettings,
+} from "@/components/project-settings";
 import { useOrganization } from "@/hooks/use-organization";
 import { useTRPC } from "@/trpc/react";
 
@@ -80,6 +83,15 @@ export default function ProjectSettingsPage({
       />
 
       <div className="flex flex-1 flex-col gap-6 p-4">
+        <ProjectGeneralSettings
+          project={{
+            id: project.id,
+            name: project.name,
+            slug: project.slug,
+            defaultFileAccess: project.defaultFileAccess,
+          }}
+          organizationId={organizationId}
+        />
         <ApiKeysList projectId={projectId} organizationId={organizationId} />
       </div>
     </>

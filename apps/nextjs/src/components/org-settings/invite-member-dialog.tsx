@@ -48,7 +48,7 @@ export function InviteMemberDialog({
         organizationId,
       });
       if (result.error) {
-        throw new Error(result.error.message || "Failed to send invitation");
+        throw new Error(result.error.message ?? "Failed to send invitation");
       }
       return result.data;
     },
@@ -59,8 +59,8 @@ export function InviteMemberDialog({
       setRole("member");
       onInvited?.();
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to send invitation");
+    onError: (error: { message?: string }) => {
+      toast.error(error.message ?? "Failed to send invitation");
     },
   });
 

@@ -12,12 +12,20 @@ import { nanoid } from "nanoid";
 
 import * as auth from "./auth";
 
+export const fileAccessTypes = pgEnum("file_access_types", [
+  "public",
+  "private",
+]);
+
 export const projects = pgTable("projects", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => nanoid()),
   name: text("name").notNull(),
   slug: text("slug").notNull(), // unique across org, but not globally
+  defaultFileAccess: fileAccessTypes("default_file_access")
+    .notNull()
+    .default("private"),
   parentOrganizationId: text("parent_organization_id").references(
     () => auth.organizations.id,
     { onDelete: "cascade" },
@@ -56,10 +64,10 @@ export const files = pgTable("files", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => nanoid(16)),
-  hash: text("hash").notNull(), // a sha256 hash of the file
+  hash: text("hash"), // optional sha256 hash of the file (null if not computed)
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(),
-  s3Url: text("s3_url").notNull(), // TODO: figure out this in relation to s3
+  adapterKey: text("adapter_key").notNull(), // this is the file key in s3
   environmentId: text("environment_id")
     .references(() => projectEnvironments.id, { onDelete: "cascade" })
     .notNull(),
@@ -77,50 +85,29 @@ export const fileKeys = pgTable("file_keys", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => nanoid(16)),
+  fileName: text("file_name").notNull(),
   accessKey: text("access_key")
     .notNull()
     .unique()
-    .$defaultFn(() => nanoid(16)),
-  fileId: text("file_id")
-    .references(() => files.id, { onDelete: "cascade" })
-    .notNull(),
-  metadata: jsonb("metadata").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-});
-
-export const uploadIntentStatus = pgEnum("upload_intent_status", [
-  "pending",
-  "completed",
-  "failed",
-]);
-// this
-export const uploadIntents = pgTable("upload_intents", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => nanoid(16)),
+    .$defaultFn(() => nanoid(32)),
+  fileId: text("file_id").references(() => files.id, { onDelete: "cascade" }), // nullable - null means pending upload
+  isPublic: boolean("is_public").notNull().default(false), // resolved from project.defaultFileAccess at creation if not explicitly set
   environmentId: text("environment_id")
     .references(() => projectEnvironments.id, { onDelete: "cascade" })
     .notNull(),
   projectId: text("project_id")
     .references(() => projects.id, { onDelete: "cascade" })
     .notNull(),
-  fileKeyId: text("file_key_id")
-    .references(() => fileKeys.id, { onDelete: "cascade" })
-    .notNull(),
+  metadata: jsonb("metadata").notNull(),
 
-  status: uploadIntentStatus("status").notNull().default("pending"),
-  uploadStartedAt: timestamp("upload_started_at"),
+  // Claimed values from signed URL (for validation)
+  claimedHash: text("claimed_hash"), // optional - if provided, worker validates against actual
+  claimedMimeType: text("claimed_mime_type"), // optional - if provided, worker validates
+  claimedSize: integer("claimed_size").notNull(), // required - for quota/validation
+
+  // Upload state tracking
   uploadCompletedAt: timestamp("upload_completed_at"),
   uploadFailedAt: timestamp("upload_failed_at"),
-  expired: boolean("expired").notNull().default(false), // if the multipart upload was abandoned
-
-  claimedHash: text("hash").notNull(), // a sha256 hash of the file calculated by the client
-  mimeType: text("mime_type").notNull(),
-  size: integer("size").notNull(),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
@@ -128,6 +115,9 @@ export const uploadIntents = pgTable("upload_intents", {
     .$onUpdate(() => new Date())
     .notNull(),
 });
+
+// Note: uploadIntents table has been removed and merged into fileKeys
+// fileKeys now tracks upload state via nullable fileId (null = pending)
 
 // Relations
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -137,7 +127,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   }),
   environments: many(projectEnvironments),
   files: many(files),
-  uploadIntents: many(uploadIntents),
+  fileKeys: many(fileKeys),
   apiKeys: many(apiKeys),
 }));
 
@@ -149,7 +139,7 @@ export const projectEnvironmentsRelations = relations(
       references: [projects.id],
     }),
     files: many(files),
-    uploadIntents: many(uploadIntents),
+    fileKeys: many(fileKeys),
   }),
 );
 
@@ -165,26 +155,18 @@ export const filesRelations = relations(files, ({ one, many }) => ({
   fileKeys: many(fileKeys),
 }));
 
-export const fileKeysRelations = relations(fileKeys, ({ one, many }) => ({
+export const fileKeysRelations = relations(fileKeys, ({ one }) => ({
   file: one(files, {
     fields: [fileKeys.fileId],
     references: [files.id],
   }),
-  uploadIntents: many(uploadIntents),
-}));
-
-export const uploadIntentsRelations = relations(uploadIntents, ({ one }) => ({
   environment: one(projectEnvironments, {
-    fields: [uploadIntents.environmentId],
+    fields: [fileKeys.environmentId],
     references: [projectEnvironments.id],
   }),
   project: one(projects, {
-    fields: [uploadIntents.projectId],
+    fields: [fileKeys.projectId],
     references: [projects.id],
-  }),
-  fileKey: one(fileKeys, {
-    fields: [uploadIntents.fileKeyId],
-    references: [fileKeys.id],
   }),
 }));
 

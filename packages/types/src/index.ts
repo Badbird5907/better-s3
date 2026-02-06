@@ -39,17 +39,6 @@ export type InsertFileKey = typeof schema.fileKeys.$inferInsert;
 export const insertFileKeySchema = createInsertSchema(schema.fileKeys);
 export const selectFileKeySchema = createSelectSchema(schema.fileKeys);
 
-// Upload Intent
-export type UploadIntent = typeof schema.uploadIntents.$inferSelect;
-export type InsertUploadIntent = typeof schema.uploadIntents.$inferInsert;
-export const insertUploadIntentSchema = createInsertSchema(
-  schema.uploadIntents,
-);
-export const selectUploadIntentSchema = createSelectSchema(
-  schema.uploadIntents,
-);
-export type UploadIntentStatus = UploadIntent["status"];
-
 // ============================================================================
 // API Key Types
 // ============================================================================

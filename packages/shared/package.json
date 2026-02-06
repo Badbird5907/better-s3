@@ -5,7 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./signing": "./src/signing.ts",
-    "./__tests__/signing.test": "./src/__tests__/signing.test.ts"
+    "./slug": "./src/slug.ts"
   },
   "autoexport": true,
   "license": "MIT",

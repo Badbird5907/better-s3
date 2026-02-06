@@ -47,7 +47,11 @@ export function NavMain({ items, label = "Platform" }: NavMainProps) {
         {items.map((item) => {
           const isExactMatch = pathname === item.url;
           const hasExactMatchInList = items.some((otherItem) => pathname === otherItem.url);
-          const isActive = isExactMatch || (!hasExactMatchInList && pathname.startsWith(item.url + "/"));
+          // Find the longest matching URL to highlight only the most specific match
+          const longestMatchingUrl = items
+            .filter((i) => pathname === i.url || pathname.startsWith(i.url + "/"))
+            .sort((a, b) => b.url.length - a.url.length)[0]?.url;
+          const isActive = isExactMatch || (!hasExactMatchInList && longestMatchingUrl === item.url);
 
           if (!item.items || item.items.length === 0) {
             return (

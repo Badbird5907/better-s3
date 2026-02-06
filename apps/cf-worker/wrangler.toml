@@ -1,14 +1,44 @@
-name = "cf-worker"
+name = "better-s3-worker"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
 # R2 bucket for uploads (configure with your bucket name)
-# [[r2_buckets]]
-# binding = "R2_BUCKET"
-# bucket_name = "your-bucket-name"
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "better-s3-uploads"
+preview_bucket_name = "better-s3-uploads-preview"
+
+# KV namespaces for TUS protocol
+# For production: Create with `wrangler kv namespace create "TUS_METADATA"` and fill in IDs
+# For local dev: These use local persistence automatically
+[[kv_namespaces]]
+binding = "TUS_METADATA"
+id = "tus-metadata-placeholder"  # Replace with real ID for production
+
+[[kv_namespaces]]
+binding = "TUS_EXPIRATION"
+id = "tus-expiration-placeholder"  # Replace with real ID for production
 
 [vars]
-# NEXTJS_CALLBACK_URL = "https://your-nextjs-app.com"
-# SIGNING_SECRET = "your-secure-random-secret-here"  # Must match the secret in Next.js .env
-# For development, you can set this in .dev.vars (not committed to git)
+WORKER_DOMAIN = "files.evanyu.dev"
+NEXTJS_CALLBACK_URL = "http://localhost:3000"
+TUS_MAX_SIZE = "5368709120"  # 5GB in bytes
+TUS_EXPIRATION_HOURS = "24"
+
+# Development environment
+[env.development]
+name = "better-s3-worker-dev"
+vars.WORKER_DOMAIN = "lvh.me:8787"
+vars.NEXTJS_CALLBACK_URL = "http://localhost:3000"
+
+# Production environment (override these values)
+[env.production]
+name = "better-s3-worker"
+vars.WORKER_DOMAIN = "files.evanyu.dev"
+vars.NEXTJS_CALLBACK_URL = "https://your-nextjs-app.com"  # TODO: Set your production URL
+
+# Secrets (set via: wrangler secret put <NAME>)
+# CALLBACK_SECRET - Shared secret for internal API authentication
+# SIGNING_SECRET - Secret for signing URLs (must match Next.js)
+# For development, you can set these in .dev.vars (not committed to git)

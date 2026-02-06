@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Clock, Mail, MoreHorizontal, RefreshCw, X } from "lucide-react";
 import { toast } from "sonner";
@@ -54,16 +53,16 @@ export function PendingInvitations({
         invitationId,
       });
       if (result.error) {
-        throw new Error(result.error.message || "Failed to cancel invitation");
+        throw new Error(result.error.message ?? "Failed to cancel invitation");
       }
       return result.data;
     },
     onSuccess: () => {
       toast.success("Invitation cancelled");
-      invitationsQuery.refetch();
+      void invitationsQuery.refetch();
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to cancel invitation");
+    onError: (error: { message?: string }) => {
+      toast.error(error.message ?? "Failed to cancel invitation");
     },
   });
 
@@ -75,16 +74,16 @@ export function PendingInvitations({
         resend: true,
       });
       if (result.error) {
-        throw new Error(result.error.message || "Failed to resend invitation");
+        throw new Error(result.error.message ?? "Failed to resend invitation");
       }
       return result.data;
     },
     onSuccess: () => {
       toast.success("Invitation resent");
-      invitationsQuery.refetch();
+      void invitationsQuery.refetch();
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to resend invitation");
+    onError: (error: { message?: string }) => {
+      toast.error(error.message ?? "Failed to resend invitation");
     },
   });
 
@@ -179,7 +178,7 @@ export function PendingInvitations({
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {invitation.inviter?.name ?? "Unknown"}
+                    {invitation.inviter.name}
                   </TableCell>
                   {canEdit && (
                     <TableCell>

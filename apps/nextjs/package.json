@@ -17,6 +17,7 @@
     "@app/auth": "workspace:*",
     "@app/db": "workspace:*",
     "@app/redis": "workspace:*",
+    "@app/shared": "workspace:*",
     "@app/types": "workspace:*",
     "@app/ui": "workspace:*",
     "@app/validators": "workspace:*",
@@ -37,6 +38,7 @@
     "react-dom": "catalog:react19",
     "sonner": "catalog:",
     "superjson": "2.2.3",
+    "tus-js-client": "^4.3.1",
     "zod": "catalog:"
   },
   "devDependencies": {
