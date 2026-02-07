@@ -57,9 +57,18 @@ app.post(
   handleInternalMetadata,
 );
 
-app.onError((err) => {
+app.onError((err, c) => {
   console.error("Unhandled error:", err);
-  return createErrorResponse(err);
+  const response = createErrorResponse(err);
+
+  // TUS spec requires Cache-Control: no-store on all HEAD responses
+  if (c.req.method === "HEAD") {
+    const headers = new Headers(response.headers);
+    headers.set("Cache-Control", "no-store");
+    return new Response(response.body, { status: response.status, headers });
+  }
+
+  return response;
 });
 
 app.notFound((c) => {

@@ -47,7 +47,7 @@ export async function handleTusPatch(
   }
 
   const uploadOffsetHeader = c.req.header(UPLOAD_OFFSET_HEADER);
-  if (uploadOffsetHeader === undefined || uploadOffsetHeader === null) {
+  if (!uploadOffsetHeader) {
     throw Errors.invalidRequest("Upload-Offset header is required");
   }
 
@@ -66,6 +66,12 @@ export async function handleTusPatch(
     if (uploadLength === null) {
       throw Errors.invalidRequest(
         "Upload-Length must be a non-negative integer",
+      );
+    }
+
+    if (uploadLength < metadata.offset) {
+      throw Errors.invalidRequest(
+        `Upload-Length ${uploadLength} is less than current offset ${metadata.offset}`,
       );
     }
 
@@ -106,7 +112,7 @@ export async function handleTusPatch(
     });
   }
 
-  const body = c.req.raw.body;
+  const body = c.req.raw.body as ReadableStream<Uint8Array> | null;
   if (!body) {
     throw Errors.invalidRequest("Request body is required");
   }

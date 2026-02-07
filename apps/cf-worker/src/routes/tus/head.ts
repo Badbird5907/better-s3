@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 
 import type { Bindings, Variables } from "../../types/bindings";
+import type { TusError } from "../../utils/errors";
 import {
   getUploadMetadata,
   isUploadExpired,
@@ -14,7 +15,6 @@ import {
   UPLOAD_METADATA_HEADER,
   UPLOAD_OFFSET_HEADER,
 } from "../../utils/constants";
-import type { TusError } from "../../utils/errors";
 import { createErrorResponse, Errors } from "../../utils/errors";
 import { sanitizeHeaderValue } from "../../utils/validation";
 
@@ -56,7 +56,9 @@ export async function handleTusHead(
       headers[UPLOAD_DEFER_LENGTH_HEADER] = "1";
     }
 
-    if (Object.keys(metadata.metadata).length > 0) {
+    if (metadata.rawMetadata) {
+      headers[UPLOAD_METADATA_HEADER] = metadata.rawMetadata;
+    } else if (Object.keys(metadata.metadata).length > 0) {
       headers[UPLOAD_METADATA_HEADER] = Object.entries(metadata.metadata)
         .map(([key, value]) => {
           const sanitizedValue = sanitizeHeaderValue(value);
@@ -70,7 +72,7 @@ export async function handleTusHead(
       headers,
     });
   } catch (error) {
-  // tus spec requires no-store on HEAD errors
+    // tus spec requires no-store on HEAD errors
     const response = createErrorResponse(error as TusError | Error);
     const headers = new Headers(response.headers);
     headers.set("Cache-Control", "no-store");

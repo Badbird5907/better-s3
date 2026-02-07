@@ -90,12 +90,8 @@ export async function handleTusCreate(
     !signature ||
     !sizeParam
   ) {
-    return c.json(
-      {
-        error:
-          "Missing required parameters: environmentId, fileKeyId, fileName, keyId, size, sig",
-      },
-      HTTP_STATUS.BAD_REQUEST,
+    throw Errors.invalidRequest(
+      "Missing required parameters: environmentId, fileKeyId, fileName, keyId, size, sig",
     );
   }
 
@@ -153,6 +149,7 @@ export async function handleTusCreate(
       createdAt: new Date().toISOString(),
       expiresAt: generateExpirationDate(c.env),
       metadata,
+      rawMetadata: uploadMetadataHeader ?? "",
     };
 
     await storeUploadMetadata(uploadMetadata, c.env);
@@ -201,7 +198,7 @@ export async function handleTusCreate(
     }
 
     const bodyContentLength = parseNonNegativeInt(contentLengthHeader) ?? 0;
-    const body = c.req.raw.body;
+    const body = c.req.raw.body as ReadableStream<Uint8Array> | null;
 
     if (isCreationWithUpload && bodyContentLength > 0 && body) {
       const result = await processUploadChunk({
@@ -217,6 +214,7 @@ export async function handleTusCreate(
           headers: {
             "Tus-Resumable": TUS_VERSION,
             Location: uploadUrl,
+            "Upload-Expires": uploadMetadata.expiresAt,
             [UPLOAD_OFFSET_HEADER]: result.newOffset.toString(),
           },
         });

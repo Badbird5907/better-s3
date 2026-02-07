@@ -16,6 +16,7 @@ export interface TusUploadMetadata {
   createdAt: string;
   expiresAt: string;
   metadata: Record<string, string>;
+  rawMetadata?: string;
 }
 
 export interface TusUploadPart {
