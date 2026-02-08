@@ -1,9 +1,16 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { eq } from "@app/db";
+import { eq, sql } from "@app/db";
 import { db } from "@app/db/client";
-import { fileKeys, files, projectEnvironments } from "@app/db/schema";
+import {
+  fileKeys,
+  files,
+  projectEnvironments,
+  projects,
+  usageDaily,
+  usageEvents,
+} from "@app/db/schema";
 import { publishMessage } from "@app/redis";
 
 import { env } from "../../../../env";
@@ -42,10 +49,78 @@ const schema = z.union([
     data: z.object({
       environmentId: z.string(),
       fileKeyId: z.string(),
+      projectId: z.string(),
       error: z.string().optional(),
     }),
   }),
 ]);
+
+async function trackUsageEvent(
+  eventType: "upload_completed" | "upload_failed" | "download",
+  projectId: string,
+  environmentId: string,
+  bytes?: number,
+  fileId?: string,
+) {
+  try {
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.id, projectId),
+      columns: { parentOrganizationId: true },
+    });
+
+    if (!project?.parentOrganizationId) return;
+
+    const organizationId = project.parentOrganizationId;
+
+    await db.insert(usageEvents).values({
+      organizationId,
+      projectId,
+      environmentId,
+      eventType,
+      bytes: bytes ?? null,
+      fileId: fileId ?? null,
+    });
+
+    const today = new Date().toISOString().split("T")[0]!;
+
+    const updateField = {
+      upload_completed: "uploadsCompleted",
+      upload_failed: "uploadsFailed",
+      download: "downloads",
+    }[eventType] as "uploadsCompleted" | "uploadsFailed" | "downloads";
+
+    const bytesField =
+      eventType === "upload_completed" ? "bytesUploaded" : null;
+
+    await db
+      .insert(usageDaily)
+      .values({
+        organizationId,
+        projectId,
+        environmentId,
+        date: today,
+        [updateField]: 1,
+        ...(bytesField && bytes ? { [bytesField]: bytes } : {}),
+      })
+      .onConflictDoUpdate({
+        target: [
+          usageDaily.organizationId,
+          usageDaily.projectId,
+          usageDaily.environmentId,
+          usageDaily.date,
+        ],
+        set: {
+          [updateField]: sql`${usageDaily[updateField]} + 1`,
+          ...(bytesField && bytes
+            ? { [bytesField]: sql`${usageDaily[bytesField]} + ${bytes}` }
+            : {}),
+          updatedAt: new Date(),
+        },
+      });
+  } catch (error) {
+    console.error("Failed to track usage event:", error);
+  }
+}
 
 export async function POST(request: Request) {
   const header = request.headers.get("Authorization");
@@ -168,9 +243,16 @@ export async function POST(request: Request) {
           },
         });
       } catch (pubError) {
-        // Log but don't fail the callback - Redis pub/sub is optional
         console.error("Failed to publish upload completion message:", pubError);
       }
+
+      trackUsageEvent(
+        "upload_completed",
+        data.projectId,
+        data.environmentId,
+        data.actualSize,
+        file.id,
+      );
 
       return new Response(
         JSON.stringify({
@@ -214,9 +296,10 @@ export async function POST(request: Request) {
           },
         });
       } catch (pubError) {
-        // Log but don't fail the callback - Redis pub/sub is optional
         console.error("Failed to publish upload failure message:", pubError);
       }
+
+      trackUsageEvent("upload_failed", data.projectId, data.environmentId);
 
       return new Response(JSON.stringify({ success: true, status: "failed" }), {
         status: 200,

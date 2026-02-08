@@ -4,11 +4,7 @@ import { fileKeys } from "@app/db/schema";
 
 import { env } from "../../../../env";
 
-/**
- * Internal endpoint for Cloudflare Worker to lookup file key by access key
- */
 export async function POST(request: Request) {
-  // Verify CALLBACK_SECRET
   const header = request.headers.get("Authorization");
   if (
     !header?.startsWith("Bearer ") ||
@@ -38,7 +34,7 @@ export async function POST(request: Request) {
       },
     });
 
-    if (!fileKey || fileKey.projectId !== projectId) {
+    if (fileKey?.projectId !== projectId) {
       return new Response(JSON.stringify({ error: "File not found" }), {
         status: 404,
         headers: { "Content-Type": "application/json" },

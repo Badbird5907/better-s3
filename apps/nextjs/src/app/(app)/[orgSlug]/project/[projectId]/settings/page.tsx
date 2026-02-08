@@ -1,12 +1,11 @@
 "use client";
 
 import { use } from "react";
-import { notFound, useParams } from "next/navigation";
+import { notFound } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { Skeleton } from "@app/ui/components/skeleton";
 
-import { PageHeader } from "@/components/page-header";
 import {
   ApiKeysList,
   ProjectGeneralSettings,
@@ -25,8 +24,6 @@ export default function ProjectSettingsPage({
   params,
 }: ProjectSettingsPageProps) {
   const trpc = useTRPC();
-  const routeParams = useParams<{ orgSlug: string }>();
-  const orgSlug = routeParams.orgSlug;
   const { organization } = useOrganization();
   const organizationId = organization?.id ?? "";
 
@@ -40,17 +37,9 @@ export default function ProjectSettingsPage({
     ),
   );
 
-  const projectsQuery = useQuery(
-    trpc.project.list.queryOptions(
-      { organizationId },
-      { enabled: !!organizationId },
-    ),
-  );
-
   if (projectQuery.isLoading || !organizationId) {
     return (
       <>
-        <PageHeader title="Project Settings" />
         <div className="flex flex-1 flex-col gap-6 p-4">
           <Skeleton className="h-64 w-full" />
         </div>
@@ -62,33 +51,15 @@ export default function ProjectSettingsPage({
     notFound();
   }
 
-  const project = projectQuery.data;
-  const projects = projectsQuery.data ?? [];
-
   return (
     <>
-      <PageHeader
-        title="Project Settings"
-        projects={projects.map((p) => ({
-          id: p.id,
-          name: p.name,
-          slug: p.slug,
-        }))}
-        currentProject={{
-          id: project.id,
-          name: project.name,
-          slug: project.slug,
-        }}
-        orgSlug={orgSlug}
-      />
-
       <div className="flex flex-1 flex-col gap-6 p-4">
         <ProjectGeneralSettings
           project={{
-            id: project.id,
-            name: project.name,
-            slug: project.slug,
-            defaultFileAccess: project.defaultFileAccess,
+            id: projectQuery.data.id,
+            name: projectQuery.data.name,
+            slug: projectQuery.data.slug,
+            defaultFileAccess: projectQuery.data.defaultFileAccess,
           }}
           organizationId={organizationId}
         />

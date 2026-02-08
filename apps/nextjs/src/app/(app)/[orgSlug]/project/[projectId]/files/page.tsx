@@ -72,10 +72,9 @@ import {
 } from "@app/ui/components/table";
 
 import { getDownloadUrl } from "@/actions/file";
-import { PageHeader } from "@/components/page-header";
-import { UploadDialog } from "@/components/upload-dialog";
 import { useOrganization } from "@/hooks/use-organization";
 import { useTRPC } from "@/trpc/react";
+import { UploadDialog } from "@/components/upload-dialog";
 
 interface FilesPageProps {
   params: Promise<{
@@ -232,13 +231,6 @@ export default function FilesPage({ params }: FilesPageProps) {
     ),
   );
 
-  const projectsQuery = useQuery(
-    trpc.project.list.queryOptions(
-      { organizationId },
-      { enabled: !!organizationId },
-    ),
-  );
-
   const fileKeysQuery = useQuery(
     trpc.fileKey.list.queryOptions(
       {
@@ -322,7 +314,6 @@ export default function FilesPage({ params }: FilesPageProps) {
   if (projectQuery.isLoading || !organizationId) {
     return (
       <>
-        <PageHeader title="Loading..." />
         <div className="flex flex-1 flex-col gap-4 p-4">
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-96 w-full" />
@@ -335,8 +326,6 @@ export default function FilesPage({ params }: FilesPageProps) {
     notFound();
   }
 
-  const project = projectQuery.data;
-  const projects = projectsQuery.data ?? [];
   const fileKeys = fileKeysQuery.data?.fileKeys ?? [];
   const pagination = fileKeysQuery.data?.pagination;
   const filterOptions = filterOptionsQuery.data;
@@ -354,21 +343,6 @@ export default function FilesPage({ params }: FilesPageProps) {
 
   return (
     <>
-      <PageHeader
-        title={undefined}
-        projects={projects.map((p) => ({
-          id: p.id,
-          name: p.name,
-          slug: p.slug,
-        }))}
-        currentProject={{
-          id: project.id,
-          name: project.name,
-          slug: project.slug,
-        }}
-        orgSlug={orgSlug}
-      />
-
       <div className="flex flex-1 flex-col gap-4 p-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>

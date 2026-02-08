@@ -138,7 +138,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if key is expired
     if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
       console.log("[verify-signature] API key expired", {
         keyId,

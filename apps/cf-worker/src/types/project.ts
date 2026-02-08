@@ -1,3 +1,4 @@
+import { z } from "zod";
 export interface ProjectInfo {
   id: string;
   defaultFileAccess: "public" | "private";
@@ -20,6 +21,24 @@ export interface FileInfo {
   size: number;
   adapterKey: string;
 }
+
+export const fileInfoSchema = z.object({
+  id: z.string(),
+  hash: z.string().nullable(),
+  mimeType: z.string(),
+  size: z.number(),
+  adapterKey: z.string(),
+});
+
+export const fileKeyInfoSchema = z.object({
+  id: z.string(),
+  fileName: z.string(),
+  accessKey: z.string(),
+  projectId: z.string(),
+  environmentId: z.string(),
+  isPublic: z.boolean(),
+  file: fileInfoSchema,
+});
 
 export interface UploadCallbackData {
   type: "upload-completed" | "upload-failed";
@@ -45,13 +64,27 @@ export interface UploadCallbackData {
       };
 }
 
-export interface UploadCallbackResponse {
-  success: boolean;
-  fileKeyId?: string;
-  accessKey?: string;
-  fileId?: string;
-  status?: string;
-}
+// export interface UploadCallbackResponse {
+//   success: boolean;
+//   fileKeyId?: string;
+//   accessKey?: string;
+//   fileId?: string;
+//   status?: string;
+// }
+
+export const uploadCallbackResponseSchema = z.object({
+  success: z.boolean(),
+  fileKeyId: z.string().optional(),
+  accessKey: z.string().optional(),
+  fileId: z.string().optional(),
+  status: z.string().optional(),
+});
+export type UploadCallbackResponse = z.infer<typeof uploadCallbackResponseSchema>;
+
+export const errorResponseSchema = z.object({
+  error: z.string().optional(),
+});
+export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 
 export interface SignatureVerificationRequest {
   keyId: string;

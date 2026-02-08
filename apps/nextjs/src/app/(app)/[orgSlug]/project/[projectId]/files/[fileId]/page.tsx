@@ -59,7 +59,6 @@ import {
 import { Skeleton } from "@app/ui/components/skeleton";
 
 import { getDownloadUrl } from "@/actions/file";
-import { PageHeader } from "@/components/page-header";
 import { useOrganization } from "@/hooks/use-organization";
 import { useTRPC } from "@/trpc/react";
 
@@ -148,13 +147,6 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
     ),
   );
 
-  const projectsQuery = useQuery(
-    trpc.project.list.queryOptions(
-      { organizationId },
-      { enabled: !!organizationId },
-    ),
-  );
-
   const fileKeyQuery = useQuery(
     trpc.fileKey.getById.queryOptions(
       { id: fileId, projectId, organizationId },
@@ -232,7 +224,6 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
   if (projectQuery.isLoading || fileKeyQuery.isLoading || !organizationId) {
     return (
       <>
-        <PageHeader title="File Details" />
         <div className="flex flex-1 flex-col gap-4 p-4">
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-32 w-full" />
@@ -250,8 +241,6 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
     notFound();
   }
 
-  const project = projectQuery.data;
-  const projects = projectsQuery.data ?? [];
   const fileKey = fileKeyQuery.data;
 
   const status = fileKey.fileId
@@ -271,21 +260,6 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
 
   return (
     <>
-      <PageHeader
-        title={undefined}
-        projects={projects.map((p) => ({
-          id: p.id,
-          name: p.name,
-          slug: p.slug,
-        }))}
-        currentProject={{
-          id: project.id,
-          name: project.name,
-          slug: project.slug,
-        }}
-        orgSlug={orgSlug}
-      />
-
       <div className="flex flex-1 flex-col gap-4 p-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>

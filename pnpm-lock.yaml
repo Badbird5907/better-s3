@@ -173,7 +173,7 @@ importers:
         version: link:../../packages/validators
       '@better-auth/sso':
         specifier: ^1.4.17
-        version: 1.4.18(@better-auth/utils@0.3.0)(better-auth@1.4.0-beta.9(better-sqlite3@12.6.2)(next@16.1.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
+        version: 1.4.18(@better-auth/utils@0.3.0)(better-auth@1.4.0-beta.9(better-sqlite3@12.6.2)(react@19.2.3))
       '@t3-oss/env-nextjs':
         specifier: ^0.13.10
         version: 0.13.10(typescript@5.9.3)(zod@4.3.6)
@@ -216,6 +216,9 @@ importers:
       react-dom:
         specifier: catalog:react19
         version: 19.2.3(react@19.2.3)
+      recharts:
+        specifier: 2.15.4
+        version: 2.15.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       sonner:
         specifier: 'catalog:'
         version: 2.0.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -337,7 +340,7 @@ importers:
         version: link:../db
       '@better-auth/sso':
         specifier: ^1.4.17
-        version: 1.4.18(@better-auth/utils@0.3.0)(better-auth@1.4.0-beta.9(better-sqlite3@12.6.2)(next@16.1.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
+        version: 1.4.18(@better-auth/utils@0.3.0)(better-auth@1.4.0-beta.9(better-sqlite3@12.6.2)(react@19.2.3))
       '@t3-oss/env-core':
         specifier: ^0.13.10
         version: 0.13.10(typescript@5.9.3)(zod@4.3.6)
@@ -412,6 +415,9 @@ importers:
       prettier:
         specifier: 'catalog:'
         version: 3.8.1
+      tsx:
+        specifier: 'catalog:'
+        version: 4.21.0
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -3220,7 +3226,7 @@ packages:
   '@vercel/postgres@0.10.0':
     resolution: {integrity: sha512-fSD23DxGND40IzSkXjcFcxr53t3Tiym59Is0jSYIFpG4/0f0KO9SGtcp1sXiebvPaGe7N/tU05cH4yt2S6/IPg==}
     engines: {node: '>=18.14'}
-    deprecated: '@vercel/postgres is deprecated. You can either choose an alternate storage solution from the Vercel Marketplace if you want to set up a new database. Or you can follow this guide to migrate your existing Vercel Postgres db: https://neon.com/docs/guides/vercel-postgres-transition-guide'
+    deprecated: '@vercel/postgres is deprecated. If you are setting up a new database, you can choose an alternate storage solution from the Vercel Marketplace. If you had an existing Vercel Postgres database, it should have been migrated to Neon as a native Vercel integration. You can find more details and the guide to migrate to Neon''s SDKs here: https://neon.com/docs/guides/vercel-postgres-transition-guide'
 
   '@xmldom/is-dom-node@1.0.1':
     resolution: {integrity: sha512-CJDxIgE5I0FH+ttq/Fxy6nRpxP70+e2O048EPe85J2use3XKdatVM7dDVvFNjQudd9B49NPoZ+8PG49zj4Er8Q==}
@@ -6487,7 +6493,7 @@ snapshots:
       nanostores: 1.1.0
       zod: 4.3.6
 
-  '@better-auth/sso@1.4.18(@better-auth/utils@0.3.0)(better-auth@1.4.0-beta.9(better-sqlite3@12.6.2)(next@16.1.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3))':
+  '@better-auth/sso@1.4.18(@better-auth/utils@0.3.0)(better-auth@1.4.0-beta.9(better-sqlite3@12.6.2)(react@19.2.3))':
     dependencies:
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.21

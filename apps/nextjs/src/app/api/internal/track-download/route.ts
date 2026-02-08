@@ -1,0 +1,102 @@
+import { z } from "zod";
+
+import { eq, sql } from "@app/db";
+import { db } from "@app/db/client";
+import { projects, usageDaily, usageEvents } from "@app/db/schema";
+
+import { env } from "../../../../env";
+
+const schema = z.object({
+  projectId: z.string(),
+  environmentId: z.string(),
+  fileId: z.string(),
+  bytes: z.number(),
+});
+
+export async function POST(request: Request) {
+  const header = request.headers.get("Authorization");
+  if (!header?.startsWith("Bearer ")) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  const token = header.split(" ")[1];
+  if (!token || token !== env.CALLBACK_SECRET) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const body: unknown = await request.json();
+  const parsed = schema.safeParse(body);
+
+  if (!parsed.success) {
+    return new Response(
+      JSON.stringify({
+        error: "Invalid request",
+        details: parsed.error.issues,
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const { projectId, environmentId, fileId, bytes } = parsed.data;
+
+  try {
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.id, projectId),
+      columns: { parentOrganizationId: true },
+    });
+
+    if (!project?.parentOrganizationId) {
+      return new Response(JSON.stringify({ error: "Project not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const organizationId = project.parentOrganizationId;
+
+    await db.insert(usageEvents).values({
+      organizationId,
+      projectId,
+      environmentId,
+      eventType: "download",
+      bytes,
+      fileId,
+    });
+
+    const today = new Date().toISOString().split("T")[0];
+
+    await db
+      .insert(usageDaily)
+      .values({
+        organizationId,
+        projectId,
+        environmentId,
+        date: today,
+        downloads: 1,
+        bytesDownloaded: bytes,
+      } as typeof usageDaily.$inferInsert)
+      .onConflictDoUpdate({
+        target: [
+          usageDaily.organizationId,
+          usageDaily.projectId,
+          usageDaily.environmentId,
+          usageDaily.date,
+        ],
+        set: {
+          downloads: sql`${usageDaily.downloads} + 1`,
+          bytesDownloaded: sql`${usageDaily.bytesDownloaded} + ${bytes}`,
+          updatedAt: new Date(),
+        },
+      });
+
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    console.error("Error tracking download:", error);
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}

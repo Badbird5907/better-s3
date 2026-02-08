@@ -1,12 +1,15 @@
 import { relations } from "drizzle-orm";
 import {
+  bigint,
   boolean,
+  date,
   integer,
   jsonb,
   pgEnum,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
 
@@ -233,6 +236,122 @@ export const organizationsRelationsExtended = relations(
 // Extended members relation to include apiKeys
 export const membersRelationsExtended = relations(auth.members, ({ many }) => ({
   apiKeys: many(apiKeys),
+}));
+
+// Analytics: Event Types
+export const usageEventTypes = pgEnum("usage_event_types", [
+  "upload_started",
+  "upload_completed",
+  "upload_failed",
+  "download",
+]);
+
+// Analytics: Raw usage events
+export const usageEvents = pgTable("usage_events", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => nanoid()),
+  organizationId: text("organization_id")
+    .references(() => auth.organizations.id, { onDelete: "cascade" })
+    .notNull(),
+  projectId: text("project_id")
+    .references(() => projects.id, { onDelete: "cascade" })
+    .notNull(),
+  environmentId: text("environment_id")
+    .references(() => projectEnvironments.id, { onDelete: "cascade" })
+    .notNull(),
+  eventType: usageEventTypes("event_type").notNull(),
+  bytes: bigint("bytes", { mode: "number" }),
+  fileId: text("file_id").references(() => files.id, { onDelete: "set null" }),
+  apiKeyId: text("api_key_id").references(() => apiKeys.id, {
+    onDelete: "set null",
+  }),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const usageDaily = pgTable(
+  "usage_daily",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    organizationId: text("organization_id")
+      .references(() => auth.organizations.id, { onDelete: "cascade" })
+      .notNull(),
+    projectId: text("project_id").references(() => projects.id, {
+      onDelete: "cascade",
+    }),
+    environmentId: text("environment_id").references(
+      () => projectEnvironments.id,
+      { onDelete: "cascade" },
+    ),
+    date: date("date").notNull(),
+    uploadsStarted: integer("uploads_started").notNull().default(0),
+    uploadsCompleted: integer("uploads_completed").notNull().default(0),
+    uploadsFailed: integer("uploads_failed").notNull().default(0),
+    downloads: integer("downloads").notNull().default(0),
+    bytesUploaded: bigint("bytes_uploaded", { mode: "number" })
+      .notNull()
+      .default(0),
+    bytesDownloaded: bigint("bytes_downloaded", { mode: "number" })
+      .notNull()
+      .default(0),
+    storageBytes: bigint("storage_bytes", { mode: "number" })
+      .notNull()
+      .default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("usage_daily_org_project_env_date_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.environmentId,
+      table.date,
+    ),
+  ],
+);
+
+export const usageEventsRelations = relations(usageEvents, ({ one }) => ({
+  organization: one(auth.organizations, {
+    fields: [usageEvents.organizationId],
+    references: [auth.organizations.id],
+  }),
+  project: one(projects, {
+    fields: [usageEvents.projectId],
+    references: [projects.id],
+  }),
+  environment: one(projectEnvironments, {
+    fields: [usageEvents.environmentId],
+    references: [projectEnvironments.id],
+  }),
+  file: one(files, {
+    fields: [usageEvents.fileId],
+    references: [files.id],
+  }),
+  apiKey: one(apiKeys, {
+    fields: [usageEvents.apiKeyId],
+    references: [apiKeys.id],
+  }),
+}));
+
+export const usageDailyRelations = relations(usageDaily, ({ one }) => ({
+  organization: one(auth.organizations, {
+    fields: [usageDaily.organizationId],
+    references: [auth.organizations.id],
+  }),
+  project: one(projects, {
+    fields: [usageDaily.projectId],
+    references: [projects.id],
+  }),
+  environment: one(projectEnvironments, {
+    fields: [usageDaily.environmentId],
+    references: [projectEnvironments.id],
+  }),
 }));
 
 export * from "./auth";

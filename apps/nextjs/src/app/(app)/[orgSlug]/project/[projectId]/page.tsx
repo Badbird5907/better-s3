@@ -1,7 +1,7 @@
 "use client";
 
 import { use } from "react";
-import { notFound, useParams } from "next/navigation";
+import { notFound } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -13,7 +13,6 @@ import {
 } from "@app/ui/components/card";
 import { Skeleton } from "@app/ui/components/skeleton";
 
-import { PageHeader } from "@/components/page-header";
 import { useOrganization } from "@/hooks/use-organization";
 import { useTRPC } from "@/trpc/react";
 
@@ -26,8 +25,6 @@ interface ProjectPageProps {
 
 export default function ProjectPage({ params }: ProjectPageProps) {
   const trpc = useTRPC();
-  const routeParams = useParams<{ orgSlug: string }>();
-  const orgSlug = routeParams.orgSlug;
   const { organization } = useOrganization();
   const organizationId = organization?.id ?? "";
 
@@ -41,17 +38,9 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     ),
   );
 
-  const projectsQuery = useQuery(
-    trpc.project.list.queryOptions(
-      { organizationId },
-      { enabled: !!organizationId },
-    ),
-  );
-
-  if (projectQuery.isLoading) {
+  if (projectQuery.isLoading || !organizationId) {
     return (
       <>
-        <PageHeader title="Loading..." />
         <div className="flex flex-1 flex-col gap-4 p-4">
           <Card>
             <CardHeader>
@@ -72,25 +61,9 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   }
 
   const project = projectQuery.data;
-  const projects = projectsQuery.data ?? [];
 
   return (
     <>
-      <PageHeader
-        title={undefined}
-        projects={projects.map((p) => ({
-          id: p.id,
-          name: p.name,
-          slug: p.slug,
-        }))}
-        currentProject={{
-          id: project.id,
-          name: project.name,
-          slug: project.slug,
-        }}
-        orgSlug={orgSlug}
-      />
-
       <div className="flex flex-1 flex-col gap-4 p-4">
         <Card>
           <CardHeader>

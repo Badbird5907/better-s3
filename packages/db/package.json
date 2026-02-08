@@ -18,6 +18,7 @@
     "generate": "pnpm with-env drizzle-kit generate",
     "migrate": "pnpm with-env drizzle-kit migrate",
     "studio": "pnpm with-env drizzle-kit studio",
+    "seed:analytics": "pnpm with-env tsx seed-analytics.ts",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false",
     "with-env": "dotenv -e ../../.env --"
   },
@@ -37,6 +38,7 @@
     "drizzle-kit": "^0.31.5",
     "eslint": "catalog:",
     "prettier": "catalog:",
+    "tsx": "catalog:",
     "typescript": "catalog:"
   },
   "prettier": "@app/prettier-config"

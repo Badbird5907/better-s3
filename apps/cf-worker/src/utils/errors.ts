@@ -49,7 +49,7 @@ export function createErrorResponse(
 
   return new Response(
     JSON.stringify({
-      error: error.message ?? "Internal server error",
+      error: error.message,
       code: "internal_error",
     }),
     {

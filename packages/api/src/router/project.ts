@@ -31,7 +31,6 @@ export const projectRouter = {
         });
       }
 
-      // Verify the project belongs to the user's organization
       if (project.parentOrganizationId !== ctx.organizationId) {
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -49,13 +48,11 @@ export const projectRouter = {
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Generate slug from name
       const baseSlug = input.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
 
-      // Check for existing slugs and make unique if needed
       const existingProjects = await ctx.db.query.projects.findMany({
         where: eq(projects.parentOrganizationId, ctx.organizationId),
         columns: { slug: true },

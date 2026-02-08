@@ -17,7 +17,6 @@ import {
 import { Skeleton } from "@app/ui/components/skeleton";
 
 import { CreateProjectDialog } from "@/components/create-project-dialog";
-import { PageHeader } from "@/components/page-header";
 import { useOrganization } from "@/hooks/use-organization";
 import { useTRPC } from "@/trpc/react";
 
@@ -54,13 +53,6 @@ export default function ProjectsPage() {
 
   return (
     <>
-      <PageHeader title="Projects">
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="mr-2 size-4" />
-          New Project
-        </Button>
-      </PageHeader>
-
       <div className="flex flex-1 flex-col gap-6 p-6">
         {projectsQuery.isLoading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,9 +1,71 @@
 import type { Context } from "hono";
 
 import type { Bindings, Variables } from "../types/bindings";
+import type { FileKeyInfo } from "../types/project";
 import { verifyDownloadSignature } from "../middleware/auth";
-import { lookupFileKey } from "../services/callback";
+import { lookupFileKey, trackDownload } from "../services/callback";
 import { Errors } from "../utils/errors";
+
+const FILE_KEY_CACHE_TTL = 60; // 1 minute cache for file key lookups
+
+/**
+ * Get cached file key info or fetch from origin
+ */
+async function getCachedFileKey(
+  accessKey: string,
+  projectId: string,
+  env: Bindings,
+): Promise<FileKeyInfo> {
+  const cache = caches.default;
+  const cacheKey = new Request(
+    `https://cache.internal/file-key/${projectId}/${accessKey}`,
+  );
+
+  const cachedResponse = await cache.match(cacheKey);
+  if (cachedResponse) {
+    return cachedResponse.json();
+  }
+
+  const fileKey = await lookupFileKey(accessKey, projectId, env);
+
+  // Cache the result
+  const response = new Response(JSON.stringify(fileKey), {
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": `max-age=${FILE_KEY_CACHE_TTL}`,
+    },
+  });
+  await cache.put(cacheKey, response);
+
+  return fileKey;
+}
+
+/**
+ * Parse Range header and return range options for R2
+ */
+function parseRangeHeader(
+  rangeHeader: string,
+  fileSize: number,
+): { offset: number; length: number } | null {
+  const match = rangeHeader.match(/^bytes=(\d*)-(\d*)$/);
+  if (!match) return null;
+
+  const start = match[1] ? parseInt(match[1], 10) : undefined;
+  const end = match[2] ? parseInt(match[2], 10) : undefined;
+
+  if (start !== undefined && end !== undefined) {
+    // bytes=0-499
+    return { offset: start, length: end - start + 1 };
+  } else if (start !== undefined) {
+    // bytes=500-
+    return { offset: start, length: fileSize - start };
+  } else if (end !== undefined) {
+    // bytes=-500 (last 500 bytes)
+    return { offset: fileSize - end, length: end };
+  }
+
+  return null;
+}
 
 export async function handleDownload(
   c: Context<{ Bindings: Bindings; Variables: Variables }>,
@@ -11,12 +73,27 @@ export async function handleDownload(
   const accessKey = c.req.param("accessKey");
   const projectId = c.get("projectId");
 
-  const fileKey = await lookupFileKey(accessKey, projectId, c.env);
+  // Extract signature params early for fail-fast validation
+  const signature = c.req.query("sig");
+  const expiresAt = c.req.query("expiresAt");
 
+  // Fail-fast: Check expiry before any I/O operations
+  if (expiresAt) {
+    const now = Math.floor(Date.now() / 1000);
+    if (parseInt(expiresAt, 10) < now) {
+      throw Errors.unauthorized("Signed URL has expired");
+    }
+  }
+
+  // Check for conditional GET headers early
+  const ifNoneMatch = c.req.header("If-None-Match");
+  const rangeHeader = c.req.header("Range");
+
+  // Use cached file key lookup
+  const fileKey = await getCachedFileKey(accessKey, projectId, c.env);
+
+  // Validate signature for private files
   if (!fileKey.isPublic) {
-    const signature = c.req.query("sig");
-    const expiresAt = c.req.query("expiresAt");
-
     if (!signature || !expiresAt) {
       throw Errors.unauthorized("Signature required for private files");
     }
@@ -31,27 +108,84 @@ export async function handleDownload(
     if (!isValidSignature) {
       throw Errors.signatureInvalid();
     }
-
-    const now = Math.floor(Date.now() / 1000);
-    if (parseInt(expiresAt) < now) {
-      throw Errors.unauthorized("Signed URL has expired");
-    }
   }
 
-  const object = await c.env.R2_BUCKET.get(fileKey.file.adapterKey);
+  // Handle conditional GET - return 304 if client has current version
+  const etag = fileKey.file.hash ?? `"${fileKey.file.id}"`;
+  if (ifNoneMatch && ifNoneMatch === etag) {
+    return new Response(null, {
+      status: 304,
+      headers: {
+        ETag: etag,
+        "Cache-Control": "public, max-age=31536000",
+      },
+    });
+  }
+
+  const fileName = c.req.query("fileName") ?? fileKey.fileName;
+  const fileSize = fileKey.file.size;
+
+  // Handle range requests for partial content
+  let object: R2ObjectBody | null;
+  let isPartialContent = false;
+  let rangeStart = 0;
+  let rangeEnd = fileSize - 1;
+
+  if (rangeHeader) {
+    const range = parseRangeHeader(rangeHeader, fileSize);
+    if (range) {
+      object = await c.env.R2_BUCKET.get(fileKey.file.adapterKey, {
+        range: { offset: range.offset, length: range.length },
+      });
+      isPartialContent = true;
+      rangeStart = range.offset;
+      rangeEnd = range.offset + range.length - 1;
+    } else {
+      // Invalid range format, fetch full object
+      object = await c.env.R2_BUCKET.get(fileKey.file.adapterKey);
+    }
+  } else {
+    object = await c.env.R2_BUCKET.get(fileKey.file.adapterKey);
+  }
 
   if (!object) {
     throw Errors.fileNotFound(accessKey);
   }
 
-  const fileName = c.req.query("fileName") ?? fileKey.fileName;
-
   const headers = new Headers();
   headers.set("Content-Type", fileKey.file.mimeType);
-  headers.set("Content-Length", fileKey.file.size.toString());
   headers.set("Content-Disposition", `inline; filename="${fileName}"`);
   headers.set("Cache-Control", "public, max-age=31536000");
-  headers.set("ETag", fileKey.file.hash ?? object.httpEtag);
+  headers.set("ETag", etag);
+  headers.set("Accept-Ranges", "bytes");
+
+  // Track download asynchronously (don't block response)
+  c.executionCtx.waitUntil(
+    trackDownload(
+      {
+        projectId,
+        environmentId: fileKey.environmentId,
+        fileId: fileKey.file.id,
+        bytes: isPartialContent ? rangeEnd - rangeStart + 1 : fileSize,
+      },
+      c.env,
+    ),
+  );
+
+  if (isPartialContent) {
+    headers.set(
+      "Content-Range",
+      `bytes ${rangeStart}-${rangeEnd}/${fileSize}`,
+    );
+    headers.set("Content-Length", (rangeEnd - rangeStart + 1).toString());
+
+    return new Response(object.body, {
+      status: 206,
+      headers,
+    });
+  }
+
+  headers.set("Content-Length", fileSize.toString());
 
   return new Response(object.body, {
     status: 200,

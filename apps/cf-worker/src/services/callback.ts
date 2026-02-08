@@ -1,19 +1,21 @@
 import type { Bindings } from "../types/bindings";
 import type {
   FileKeyInfo,
-  ProjectInfo,
   SignatureVerificationRequest,
   SignatureVerificationResponse,
   UploadCallbackData,
   UploadCallbackResponse,
+} from "../types/project";
+import {
+  errorResponseSchema,
+  fileKeyInfoSchema,
+  uploadCallbackResponseSchema,
 } from "../types/project";
 
 export async function verifyUploadSignature(
   request: SignatureVerificationRequest,
   env: Bindings,
 ): Promise<SignatureVerificationResponse> {
-  console.log("[callback]", env.NEXTJS_CALLBACK_URL);
-  console.log("[callback] Verifying upload signature with:", request);
   const response = await fetch(
     `${env.NEXTJS_CALLBACK_URL}/api/internal/verify-signature`,
     {
@@ -26,12 +28,10 @@ export async function verifyUploadSignature(
     },
   );
 
-  console.log("[callback] Response:", response);
 
   if (!response.ok) {
-    console.log("[callback] Error response:", response);
     try {
-      const error = await response.json();
+      const error: { error?: string } = await response.json();
       console.log("[callback] Error:", error);
       throw new Error(error.error ?? "Signature verification failed");
     } catch {
@@ -39,7 +39,7 @@ export async function verifyUploadSignature(
     }
   }
 
-  return (await response.json()) as SignatureVerificationResponse;
+  return await response.json();
 }
 
 export async function sendUploadCallback(
@@ -47,8 +47,8 @@ export async function sendUploadCallback(
   env: Bindings,
 ): Promise<UploadCallbackResponse> {
   const url = `${env.NEXTJS_CALLBACK_URL}/api/internal/callback`;
-  console.log("[callback] Sending upload callback to:", url);
-  console.log("[callback] Data:", JSON.stringify(data, null, 2));
+  console.log("[callback] cb:", url);
+  console.log("[callback] d:", JSON.stringify(data, null, 2));
 
   try {
     const response = await fetch(url, {
@@ -65,15 +65,15 @@ export async function sendUploadCallback(
     if (!response.ok) {
       const text = await response.text();
       console.error("[callback] Error response:", text);
-      try {
-        const error = JSON.parse(text);
-        throw new Error(error?.error ?? "Upload callback failed");
-      } catch {
-        throw new Error(`Upload callback failed: ${text}`);
+      const parsed = errorResponseSchema.safeParse(JSON.parse(text));
+      if (parsed.success && parsed.data.error) {
+        throw new Error(parsed.data.error);
       }
+      throw new Error(`Upload callback failed: ${text}`);
     }
 
-    const result = (await response.json()) as UploadCallbackResponse;
+    const json = await response.json();
+    const result = uploadCallbackResponseSchema.parse(json);
     console.log("[callback] Success:", result);
     return result;
   } catch (error) {
@@ -100,13 +100,46 @@ export async function lookupFileKey(
   );
 
   if (!response.ok) {
-    try {
-      const error: any = await response.json();
-      throw new Error(error?.error ?? "File key lookup failed");
-    } catch {
-      throw new Error("File key lookup failed");
+    const text = await response.text();
+    const parsed = errorResponseSchema.safeParse(JSON.parse(text));
+    if (parsed.success && parsed.data.error) {
+      throw new Error(parsed.data.error);
     }
+    throw new Error(`File key lookup failed: ${text}`);
   }
 
-  return (await response.json()) as FileKeyInfo;
+  const json = await response.json();
+  return fileKeyInfoSchema.parse(json);
+}
+
+export interface TrackDownloadData {
+  projectId: string;
+  environmentId: string;
+  fileId: string;
+  bytes: number;
+}
+
+export async function trackDownload(
+  data: TrackDownloadData,
+  env: Bindings,
+): Promise<void> {
+  try {
+    const response = await fetch(
+      `${env.NEXTJS_CALLBACK_URL}/api/internal/track-download`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.CALLBACK_SECRET}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      },
+    );
+
+    if (!response.ok) {
+      console.error("[analytics] Failed to track download:", response.status);
+    }
+  } catch (error) {
+    console.error("[analytics] Error tracking download:", error);
+  }
 }

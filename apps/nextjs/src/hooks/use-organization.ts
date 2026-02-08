@@ -17,7 +17,7 @@ export function useOrganization() {
 
   const query = useQuery({
     ...trpc.organization.getBySlug.queryOptions(
-      { slug: orgSlug! },
+      { slug: orgSlug ?? "" },
       { enabled: !!orgSlug },
     ),
   });

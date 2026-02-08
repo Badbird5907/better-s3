@@ -21,7 +21,7 @@ const schema = z.object({
   mimeType: z.string().optional(),
   hash: z.string().optional(),
   isPublic: z.boolean().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export async function POST(request: Request) {

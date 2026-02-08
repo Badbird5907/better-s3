@@ -1,16 +1,10 @@
 "use client";
 
-import {
-  ChevronsUpDown,
-  LogOut,
-  Monitor,
-  Moon,
-  Settings,
-  Sun,
-} from "lucide-react";
+import { LogOut, MenuIcon, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@app/ui/components/avatar";
+import { Button } from "@app/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,23 +14,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@app/ui/components/dropdown-menu";
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@app/ui/components/sidebar";
+import { useSidebar } from "@app/ui/components/sidebar";
 
-export type User = {
-  name: string;
-  email: string;
-  avatar?: string;
-};
-
-interface NavUserProps {
-  user: User;
-  onLogout?: () => void;
-}
+import { authClient } from "@/auth/client";
 
 function getInitials(name: string): string {
   return name
@@ -80,39 +60,53 @@ function ThemeMenuItem() {
   );
 }
 
-export function NavUser({ user, onLogout }: NavUserProps) {
-  const { isMobile } = useSidebar();
+export function MobileNav() {
+  const { toggleSidebar } = useSidebar();
+  const { data: session } = authClient.useSession();
+
+  const user = session?.user
+    ? {
+        name: session.user.name,
+        email: session.user.email,
+        avatar: session.user.image ?? undefined,
+      }
+    : null;
+
+  const handleLogout = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          window.location.href = "/";
+        },
+      },
+    });
+  };
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
+    <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 flex h-14 items-center justify-between border-b px-4 backdrop-blur md:hidden">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-9"
+        onClick={toggleSidebar}
+        aria-label="Open menu"
+      >
+        <MenuIcon className="size-5" />
+      </Button>
+
+      {user && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <Avatar className="size-8 rounded-lg">
+            <Button variant="ghost" size="icon" className="size-9 rounded-full">
+              <Avatar className="size-8">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-xs font-medium text-white">
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-xs font-medium text-white">
                   {getInitials(user.name)}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="text-muted-foreground truncate text-xs">
-                  {user.email}
-                </span>
-              </div>
-              <ChevronsUpDown className="text-muted-foreground ml-auto size-4" />
-            </SidebarMenuButton>
+            </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-            side={isMobile ? "bottom" : "right"}
-            align="end"
-            sideOffset={4}
-          >
+          <DropdownMenuContent className="w-56" align="end" sideOffset={8}>
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-3 px-2 py-2 text-left text-sm">
                 <Avatar className="size-10 rounded-lg">
@@ -139,7 +133,7 @@ export function NavUser({ user, onLogout }: NavUserProps) {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={onLogout}
+              onClick={handleLogout}
               className="text-destructive focus:text-destructive gap-2"
             >
               <LogOut className="size-4" />
@@ -147,7 +141,7 @@ export function NavUser({ user, onLogout }: NavUserProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
+      )}
+    </header>
   );
 }

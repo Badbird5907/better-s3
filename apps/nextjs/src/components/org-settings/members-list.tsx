@@ -40,6 +40,7 @@ import {
 
 import { authClient } from "@/auth/client";
 import { useTRPC } from "@/trpc/react";
+import { InviteMemberDialog } from "./invite-member-dialog";
 
 interface MembersListProps {
   organizationId: string;
@@ -175,11 +176,21 @@ export function MembersList({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Members</CardTitle>
-        <CardDescription>
-          People who have access to this organization ({members.length}{" "}
-          {members.length === 1 ? "member" : "members"})
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle>Members</CardTitle>
+            <CardDescription>
+              People who have access to this organization ({members.length}{" "}
+              {members.length === 1 ? "member" : "members"})
+            </CardDescription>
+          </div>
+          {canEdit && (
+            <InviteMemberDialog
+              organizationId={organizationId}
+              onInvited={() => membersQuery.refetch()}
+            />
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
