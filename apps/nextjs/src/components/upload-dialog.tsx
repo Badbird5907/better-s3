@@ -52,7 +52,6 @@ export function UploadDialog({
   onUploadComplete,
 }: UploadDialogProps) {
   const [open, setOpen] = React.useState(false);
-  const [apiKey, setApiKey] = React.useState("");
   const [selectedEnvId, setSelectedEnvId] = React.useState<string>("");
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [uploadState, setUploadState] = React.useState<UploadState>({
@@ -81,7 +80,7 @@ export function UploadDialog({
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !apiKey || !selectedEnvId) return;
+    if (!selectedFile || !selectedEnvId) return;
 
     setUploadState({ status: "preparing", progress: 0 });
 
@@ -90,7 +89,6 @@ export function UploadDialog({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           projectId,
@@ -180,27 +178,11 @@ export function UploadDialog({
         <DialogHeader>
           <DialogTitle>Upload File</DialogTitle>
           <DialogDescription>
-            Enter your API key and select a file to upload.
+            Upload a file to your project.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="api-key">API Key</Label>
-            <Input
-              id="api-key"
-              type="password"
-              placeholder="sk-bs3-..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              disabled={uploadState.status !== "idle"}
-            />
-            <p className="text-muted-foreground text-xs">
-              Your API key for this project. Get one from Project Settings &gt;
-              API Keys.
-            </p>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="environment">Environment</Label>
             <Select
