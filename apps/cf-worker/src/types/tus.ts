@@ -3,6 +3,7 @@ export interface TusUploadMetadata {
   projectId: string;
   environmentId: string;
   fileKeyId: string;
+  accessKey: string;
   fileName: string;
   size: number | null;
   offset: number;

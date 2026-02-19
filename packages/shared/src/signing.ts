@@ -24,6 +24,7 @@
 export interface SignedUploadUrlParams {
   environmentId: string;
   fileKeyId: string; // client-generated, unique per environment
+  accessKey: string; // caller-defined access key, unique per project
   fileName: string;
   size: number; // required for quota/validation
   hash?: string; // optional - if provided, worker validates against actual
@@ -45,6 +46,7 @@ export interface ParsedSignedUploadUrl {
   type: "upload";
   environmentId: string;
   fileKeyId: string;
+  accessKey: string;
   fileName: string;
   size: number;
   hash?: string;
@@ -153,6 +155,7 @@ export async function generateSignedUploadUrl(
     type: "upload",
     environmentId: params.environmentId,
     fileKeyId: params.fileKeyId,
+    accessKey: params.accessKey,
     fileName: params.fileName,
     size: params.size.toString(),
     keyId: params.keyId,
@@ -287,12 +290,13 @@ export async function verifySignedUploadUrl(
   const fileName = urlObj.searchParams.get("fileName");
   const sizeStr = urlObj.searchParams.get("size");
   const keyId = urlObj.searchParams.get("keyId");
+  const accessKey = urlObj.searchParams.get("accessKey");
   const hash = urlObj.searchParams.get("hash");
   const mimeType = urlObj.searchParams.get("mimeType");
   const expiresAtStr = urlObj.searchParams.get("expiresAt");
 
-  if (!fileName || !sizeStr || !keyId) {
-    throw new Error("Missing required parameters: fileName, size, or keyId");
+  if (!fileName || !sizeStr || !keyId || !accessKey) {
+    throw new Error("Missing required parameters: fileName, size, keyId, or accessKey");
   }
 
   const size = parseInt(sizeStr, 10);
@@ -318,6 +322,7 @@ export async function verifySignedUploadUrl(
     type: "upload",
     environmentId,
     fileKeyId,
+    accessKey,
     fileName,
     size: sizeStr,
     keyId,
@@ -336,6 +341,7 @@ export async function verifySignedUploadUrl(
     type: "upload",
     environmentId,
     fileKeyId,
+    accessKey,
     fileName,
     size,
     hash: hash ?? undefined,

@@ -165,8 +165,7 @@ export function UploadDialog({
     setUploadState({ status: "idle", progress: 0 });
   };
 
-  const canUpload =
-    apiKey && selectedEnvId && selectedFile && uploadState.status === "idle";
+  const canUpload = selectedEnvId && selectedFile && uploadState.status === "idle";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

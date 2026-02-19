@@ -1,4 +1,3 @@
-import { nanoid } from "nanoid";
 import { z } from "zod";
 
 import { eq, sql } from "@app/db";
@@ -32,6 +31,7 @@ const schema = z.union([
     data: z.object({
       environmentId: z.string(),
       fileKeyId: z.string(),
+      accessKey: z.string(),
       fileName: z.string(),
       claimedSize: z.number(),
       claimedHash: z.string().nullable(),
@@ -81,7 +81,7 @@ async function trackUsageEvent(
       fileId: fileId ?? null,
     });
 
-    const today = new Date().toISOString().split("T")[0]!;
+    const today = new Date().toISOString().substring(0, 10);
 
     const updateField = {
       upload_completed: "uploadsCompleted",
@@ -206,7 +206,7 @@ export async function POST(request: Request) {
           .insert(fileKeys)
           .values({
             id: data.fileKeyId,
-            accessKey: nanoid(32),
+            accessKey: data.accessKey,
             fileName: data.fileName,
             fileId: file.id,
             environmentId: data.environmentId,
@@ -246,7 +246,7 @@ export async function POST(request: Request) {
         console.error("Failed to publish upload completion message:", pubError);
       }
 
-      trackUsageEvent(
+      void trackUsageEvent(
         "upload_completed",
         data.projectId,
         data.environmentId,
@@ -299,7 +299,7 @@ export async function POST(request: Request) {
         console.error("Failed to publish upload failure message:", pubError);
       }
 
-      trackUsageEvent("upload_failed", data.projectId, data.environmentId);
+      void trackUsageEvent("upload_failed", data.projectId, data.environmentId);
 
       return new Response(JSON.stringify({ success: true, status: "failed" }), {
         status: 200,

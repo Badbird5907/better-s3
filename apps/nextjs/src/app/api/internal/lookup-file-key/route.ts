@@ -1,4 +1,4 @@
-import { eq } from "@app/db";
+import { and, eq } from "@app/db";
 import { db } from "@app/db/client";
 import { fileKeys } from "@app/db/schema";
 
@@ -28,13 +28,13 @@ export async function POST(request: Request) {
     }
 
     const fileKey = await db.query.fileKeys.findFirst({
-      where: eq(fileKeys.accessKey, accessKey),
+      where: and(eq(fileKeys.accessKey, accessKey), eq(fileKeys.projectId, projectId)),
       with: {
         file: true,
       },
     });
 
-    if (fileKey?.projectId !== projectId) {
+    if (!fileKey) {
       return new Response(JSON.stringify({ error: "File not found" }), {
         status: 404,
         headers: { "Content-Type": "application/json" },
