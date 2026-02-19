@@ -77,6 +77,7 @@ export async function handleTusCreate(
 
   const environmentId = metadata.environmentId ?? c.req.query("environmentId");
   const fileKeyId = metadata.fileKeyId ?? c.req.query("fileKeyId");
+  const accessKey = metadata.accessKey ?? c.req.query("accessKey");
   const fileName = metadata.fileName ?? c.req.query("fileName");
   const keyId = metadata.keyId ?? c.req.query("keyId");
   const signature = c.req.query("sig");
@@ -85,13 +86,14 @@ export async function handleTusCreate(
   if (
     !environmentId ||
     !fileKeyId ||
+    !accessKey ||
     !fileName ||
     !keyId ||
     !signature ||
     !sizeParam
   ) {
     throw Errors.invalidRequest(
-      "Missing required parameters: environmentId, fileKeyId, fileName, keyId, size, sig",
+      "Missing required parameters: environmentId, fileKeyId, accessKey, fileName, keyId, size, sig",
     );
   }
 
@@ -104,6 +106,7 @@ export async function handleTusCreate(
           type: "upload",
           environmentId,
           fileKeyId,
+          accessKey,
           fileName,
           size: sizeParam,
           keyId,
@@ -136,6 +139,7 @@ export async function handleTusCreate(
       projectId,
       environmentId,
       fileKeyId,
+      accessKey,
       fileName,
       size: uploadLength ?? null,
       offset: 0,
@@ -169,6 +173,7 @@ export async function handleTusCreate(
           data: {
             environmentId,
             fileKeyId,
+            accessKey,
             fileName,
             claimedSize: verificationResult.size,
             claimedHash: verificationResult.claimedHash ?? null,

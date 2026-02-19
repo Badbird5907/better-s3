@@ -90,9 +90,7 @@ export const fileKeys = pgTable("file_keys", {
     .$defaultFn(() => nanoid(16)),
   fileName: text("file_name").notNull(),
   accessKey: text("access_key")
-    .notNull()
-    .unique()
-    .$defaultFn(() => nanoid(32)),
+    .notNull(),
   fileId: text("file_id").references(() => files.id, { onDelete: "cascade" }), // nullable - null means pending upload
   isPublic: boolean("is_public").notNull().default(false), // resolved from project.defaultFileAccess at creation if not explicitly set
   environmentId: text("environment_id")
@@ -117,7 +115,9 @@ export const fileKeys = pgTable("file_keys", {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-});
+}, (table) => [
+  uniqueIndex("file_keys_project_access_key_idx").on(table.projectId, table.accessKey),
+]);
 
 // Note: uploadIntents table has been removed and merged into fileKeys
 // fileKeys now tracks upload state via nullable fileId (null = pending)

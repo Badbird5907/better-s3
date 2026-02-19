@@ -46,6 +46,7 @@ export interface UploadCallbackData {
     | {
         environmentId: string;
         fileKeyId: string;
+        accessKey: string;
         fileName: string;
         claimedSize: number;
         claimedHash: string | null;
@@ -93,6 +94,7 @@ export interface SignatureVerificationRequest {
     type: "upload";
     environmentId: string;
     fileKeyId: string;
+    accessKey: string;
     fileName: string;
     size: string;
     keyId: string;
@@ -108,6 +110,7 @@ export interface SignatureVerificationResponse {
   projectId?: string;
   environmentId?: string;
   fileKeyId?: string;
+  accessKey?: string;
   fileName?: string;
   size?: number;
   claimedHash?: string | null;

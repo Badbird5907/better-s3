@@ -113,6 +113,7 @@ export async function finalizeUpload(
         data: {
           environmentId: metadata.environmentId,
           fileKeyId: metadata.fileKeyId,
+          accessKey: metadata.accessKey,
           fileName: metadata.fileName,
           claimedSize: metadata.claimedSize ?? metadata.size ?? actualSize,
           claimedHash: metadata.claimedHash ?? null,

@@ -16,6 +16,7 @@ import {
 const schema = z.object({
   projectId: z.string(),
   environmentId: z.string(),
+  accessKey: z.string().min(1),
   fileName: z.string().min(1),
   size: z.number().int().positive(),
   mimeType: z.string().optional(),
@@ -93,6 +94,7 @@ export async function POST(request: Request) {
   const {
     projectId,
     environmentId,
+    accessKey,
     fileName,
     size,
     mimeType,
@@ -161,6 +163,7 @@ export async function POST(request: Request) {
       .insert(fileKeys)
       .values({
         id: fileKeyId,
+        accessKey,
         fileName,
         projectId,
         environmentId,
@@ -191,6 +194,7 @@ export async function POST(request: Request) {
       {
         environmentId,
         fileKeyId,
+        accessKey,
         fileName,
         size,
         hash,
