@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 export interface ProjectInfo {
   id: string;
   defaultFileAccess: "public" | "private";
@@ -61,6 +62,7 @@ export interface UploadCallbackData {
     | {
         environmentId: string;
         fileKeyId: string;
+        projectId: string;
         error?: string;
       };
 }
@@ -80,7 +82,9 @@ export const uploadCallbackResponseSchema = z.object({
   fileId: z.string().optional(),
   status: z.string().optional(),
 });
-export type UploadCallbackResponse = z.infer<typeof uploadCallbackResponseSchema>;
+export type UploadCallbackResponse = z.infer<
+  typeof uploadCallbackResponseSchema
+>;
 
 export const errorResponseSchema = z.object({
   error: z.string().optional(),

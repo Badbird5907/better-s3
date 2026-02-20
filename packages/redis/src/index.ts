@@ -5,7 +5,7 @@ import { Redis } from "@upstash/redis";
 import { env } from "./env";
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var redis: Redis | undefined;
 }
 
@@ -36,7 +36,7 @@ export const asyncWaitForMessage = async (
 ): Promise<Message> => {
   return new Promise<Message>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
-      subscriber.unsubscribe();
+      void subscriber.unsubscribe();
       reject(new Error("Timeout waiting for message"));
     }, timeout);
 
@@ -44,7 +44,7 @@ export const asyncWaitForMessage = async (
 
     const handleMessage = (event: SubscriberMessageEvent) => {
       clearTimeout(timeoutId);
-      subscriber.unsubscribe();
+      void subscriber.unsubscribe();
       resolve({
         channel: event.channel || channel,
         data:
@@ -58,7 +58,7 @@ export const asyncWaitForMessage = async (
 
     const handleError = (error: Error) => {
       clearTimeout(timeoutId);
-      subscriber.unsubscribe();
+      void subscriber.unsubscribe();
       reject(error);
     };
 

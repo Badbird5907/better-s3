@@ -5,6 +5,7 @@ import { use } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Ban,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -31,6 +32,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@app/ui/components/badge";
 import { Button } from "@app/ui/components/button";
+import { FileStatusBadge } from "@/components/file-status-badge";
 import {
   Card,
   CardContent,
@@ -72,9 +74,9 @@ import {
 } from "@app/ui/components/table";
 
 import { getDownloadUrl } from "@/actions/file";
+import { UploadDialog } from "@/components/upload-dialog";
 import { useOrganization } from "@/hooks/use-organization";
 import { useTRPC } from "@/trpc/react";
-import { UploadDialog } from "@/components/upload-dialog";
 
 interface FilesPageProps {
   params: Promise<{
@@ -206,6 +208,7 @@ export default function FilesPage({ params }: FilesPageProps) {
   >("createdAt");
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
   const [deleteFileId, setDeleteFileId] = React.useState<string | null>(null);
+  const [failFileId, setFailFileId] = React.useState<string | null>(null);
   const [loadingUrlId, setLoadingUrlId] = React.useState<string | null>(null);
 
   const handleSearchChange = React.useCallback((value: string) => {
@@ -281,6 +284,24 @@ export default function FilesPage({ params }: FilesPageProps) {
     }),
   );
 
+  const markFailedMutation = useMutation(
+    trpc.fileKey.markFailed.mutationOptions({
+      onSuccess: () => {
+        toast.success("Upload marked as failed");
+        setFailFileId(null);
+        void queryClient.invalidateQueries({
+          queryKey: trpc.fileKey.list.queryKey(),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: trpc.fileKey.getStats.queryKey(),
+        });
+      },
+      onError: (error: { message?: string }) => {
+        toast.error(error.message ?? "Failed to mark upload as failed");
+      },
+    }),
+  );
+
   const handleOpenFile = async (fileKeyId: string) => {
     setLoadingUrlId(fileKeyId);
     try {
@@ -305,6 +326,16 @@ export default function FilesPage({ params }: FilesPageProps) {
     if (deleteFileId) {
       deleteMutation.mutate({
         id: deleteFileId,
+        projectId,
+        organizationId,
+      });
+    }
+  };
+
+  const handleMarkFailed = () => {
+    if (failFileId) {
+      markFailedMutation.mutate({
+        id: failFileId,
         projectId,
         organizationId,
       });
@@ -604,31 +635,7 @@ export default function FilesPage({ params }: FilesPageProps) {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {fk.status === "completed" ? (
-                              <Badge
-                                variant="default"
-                                className="bg-green-500/10 text-green-600 hover:bg-green-500/20"
-                              >
-                                <CheckCircle2 className="mr-1 h-3 w-3" />
-                                Done
-                              </Badge>
-                            ) : fk.status === "pending" ? (
-                              <Badge
-                                variant="secondary"
-                                className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20"
-                              >
-                                <Clock className="mr-1 h-3 w-3" />
-                                Pending
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="destructive"
-                                className="bg-red-500/10 text-red-600 hover:bg-red-500/20"
-                              >
-                                <XCircle className="mr-1 h-3 w-3" />
-                                Failed
-                              </Badge>
-                            )}
+                            <FileStatusBadge status={fk.status} />
                           </TableCell>
                           <TableCell>
                             {fk.mimeType ? (
@@ -697,6 +704,18 @@ export default function FilesPage({ params }: FilesPageProps) {
                                   <Copy className="mr-2 h-4 w-4" />
                                   Copy Access Key
                                 </DropdownMenuItem>
+                                {fk.status === "pending" && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => setFailFileId(fk.id)}
+                                      className="text-orange-600"
+                                    >
+                                      <Ban className="mr-2 h-4 w-4" />
+                                      Mark as Failed
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() => setDeleteFileId(fk.id)}
@@ -811,6 +830,40 @@ export default function FilesPage({ params }: FilesPageProps) {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={failFileId !== null}
+        onOpenChange={(open) => !open && setFailFileId(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Upload as Failed</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark this upload as failed? This will
+              abort the upload and any partial data will be cleaned up.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setFailFileId(null)}
+              disabled={markFailedMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleMarkFailed}
+              disabled={markFailedMutation.isPending}
+            >
+              {markFailedMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Mark as Failed
             </Button>
           </DialogFooter>
         </DialogContent>

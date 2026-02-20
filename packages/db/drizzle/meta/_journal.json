@@ -43,6 +43,13 @@
       "when": 1771488906452,
       "tag": "0005_loose_sumo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1771539332861,
+      "tag": "0006_clammy_wrecking_crew",
+      "breakpoints": true
     }
   ]
 }

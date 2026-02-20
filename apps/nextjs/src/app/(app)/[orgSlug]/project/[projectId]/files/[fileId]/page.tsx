@@ -7,9 +7,8 @@ import { notFound, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Ban,
   Calendar,
-  CheckCircle2,
-  Clock,
   Copy,
   ExternalLink,
   File,
@@ -27,12 +26,12 @@ import {
   Lock,
   Tag,
   Trash2,
-  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@app/ui/components/badge";
 import { Button } from "@app/ui/components/button";
+import { FileStatusBadge } from "@/components/file-status-badge";
 import {
   Card,
   CardContent,
@@ -138,6 +137,7 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
   const organizationId = organization?.id ?? "";
 
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
+  const [showMarkFailedDialog, setShowMarkFailedDialog] = React.useState(false);
   const [isLoadingUrl, setIsLoadingUrl] = React.useState(false);
 
   const projectQuery = useQuery(
@@ -184,6 +184,25 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
     }),
   );
 
+  const markFailedMutation = useMutation(
+    trpc.fileKey.markFailed.mutationOptions({
+      onSuccess: () => {
+        toast.success("Upload marked as failed");
+        setShowMarkFailedDialog(false);
+        void queryClient.invalidateQueries({
+          queryKey: trpc.fileKey.getById.queryKey({
+            id: fileId,
+            projectId,
+            organizationId,
+          }),
+        });
+      },
+      onError: (error: { message?: string }) => {
+        toast.error(error.message ?? "Failed to mark upload as failed");
+      },
+    }),
+  );
+
   const handleGetUrl = async () => {
     setIsLoadingUrl(true);
     try {
@@ -221,6 +240,14 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
     });
   };
 
+  const handleMarkFailed = () => {
+    markFailedMutation.mutate({
+      id: fileId,
+      projectId,
+      organizationId,
+    });
+  };
+
   if (projectQuery.isLoading || fileKeyQuery.isLoading || !organizationId) {
     return (
       <>
@@ -243,11 +270,7 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
 
   const fileKey = fileKeyQuery.data;
 
-  const status = fileKey.fileId
-    ? "completed"
-    : fileKey.uploadFailedAt
-      ? "failed"
-      : "pending";
+  const status = fileKey.status;
 
   const mimeType = fileKey.file?.mimeType ?? fileKey.claimedMimeType;
   const size = fileKey.file?.size ?? fileKey.claimedSize;
@@ -306,31 +329,7 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                   <Tag className="text-muted-foreground h-4 w-4" />
                   <span className="text-muted-foreground">Status</span>
                 </div>
-                {status === "completed" ? (
-                  <Badge
-                    variant="default"
-                    className="bg-green-500/10 text-green-600"
-                  >
-                    <CheckCircle2 className="mr-1 h-3 w-3" />
-                    Completed
-                  </Badge>
-                ) : status === "pending" ? (
-                  <Badge
-                    variant="secondary"
-                    className="bg-yellow-500/10 text-yellow-600"
-                  >
-                    <Clock className="mr-1 h-3 w-3" />
-                    Pending
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="destructive"
-                    className="bg-red-500/10 text-red-600"
-                  >
-                    <XCircle className="mr-1 h-3 w-3" />
-                    Failed
-                  </Badge>
-                )}
+                <FileStatusBadge status={status} />
               </div>
 
               <div className="flex items-center justify-between">
@@ -506,7 +505,25 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
               Irreversible actions for this file
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {status === "pending" && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Mark upload as failed</p>
+                  <p className="text-muted-foreground text-sm">
+                    Abort this pending upload and clean up any partial data
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-700 dark:hover:bg-orange-950"
+                  onClick={() => setShowMarkFailedDialog(true)}
+                >
+                  <Ban className="mr-2 h-4 w-4" />
+                  Mark as Failed
+                </Button>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Delete this file</p>
@@ -552,6 +569,41 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showMarkFailedDialog}
+        onOpenChange={setShowMarkFailedDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Upload as Failed</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark the upload for "{fileKey.fileName}"
+              as failed? This will abort the upload and any partial data will be
+              cleaned up.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowMarkFailedDialog(false)}
+              disabled={markFailedMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleMarkFailed}
+              disabled={markFailedMutation.isPending}
+            >
+              {markFailedMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Mark as Failed
             </Button>
           </DialogFooter>
         </DialogContent>

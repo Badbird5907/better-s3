@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@app/ui/components/dialog";
-import { Input } from "@app/ui/components/input";
 import { Label } from "@app/ui/components/label";
 import { Progress } from "@app/ui/components/progress";
 import {
@@ -52,7 +51,6 @@ export function UploadDialog({
   onUploadComplete,
 }: UploadDialogProps) {
   const [open, setOpen] = React.useState(false);
-  const [apiKey, setApiKey] = React.useState("");
   const [selectedEnvId, setSelectedEnvId] = React.useState<string>("");
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [uploadState, setUploadState] = React.useState<UploadState>({
@@ -81,16 +79,15 @@ export function UploadDialog({
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !apiKey || !selectedEnvId) return;
+    if (!selectedFile || !selectedEnvId) return;
 
     setUploadState({ status: "preparing", progress: 0 });
 
     try {
-      const response = await fetch("/api/v1/upload", {
+      const response = await fetch("/api/dashboard/upload", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           projectId,
@@ -175,31 +172,15 @@ export function UploadDialog({
           Upload File
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="overflow-hidden sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Upload File</DialogTitle>
           <DialogDescription>
-            Enter your API key and select a file to upload.
+            Select an environment and a file to upload.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="api-key">API Key</Label>
-            <Input
-              id="api-key"
-              type="password"
-              placeholder="sk-bs3-..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              disabled={uploadState.status !== "idle"}
-            />
-            <p className="text-muted-foreground text-xs">
-              Your API key for this project. Get one from Project Settings &gt;
-              API Keys.
-            </p>
-          </div>
-
+        <div className="space-y-4 py-4 max-w-[400px]">
           <div className="space-y-2">
             <Label htmlFor="environment">Environment</Label>
             <Select
@@ -230,18 +211,19 @@ export function UploadDialog({
               disabled={uploadState.status !== "idle"}
             />
             {selectedFile ? (
-              <div className="bg-muted flex items-center justify-between rounded-lg border p-3">
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <FileUp className="text-muted-foreground h-4 w-4 shrink-0" />
-                  <span className="truncate text-sm">{selectedFile.name}</span>
-                  <span className="text-muted-foreground shrink-0 text-xs">
-                    ({formatFileSize(selectedFile.size)})
-                  </span>
-                </div>
+              <div className="bg-muted flex min-w-0 items-center gap-2 overflow-hidden rounded-lg border p-3">
+                <FileUp className="text-muted-foreground h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {selectedFile.name}
+                </span>
+                <span className="text-muted-foreground shrink-0 text-xs">
+                  ({formatFileSize(selectedFile.size)})
+                </span>
                 {uploadState.status === "idle" && (
                   <Button
                     variant="ghost"
                     size="icon-sm"
+                    className="shrink-0"
                     onClick={() => setSelectedFile(null)}
                   >
                     <X className="h-4 w-4" />

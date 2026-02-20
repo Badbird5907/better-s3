@@ -8,6 +8,7 @@ import { Label } from "@app/ui/components/label";
 import { Separator } from "@app/ui/components/separator";
 
 import { authClient } from "@/auth/client";
+import Link from "next/link";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -133,9 +134,9 @@ export function SignUpForm() {
 
       <p className="text-muted-foreground mt-6 text-center text-sm">
         Already have an account?{" "}
-        <a href="/login" className="text-primary hover:underline">
+        <Link href="/login" className="text-primary hover:underline">
           Sign in
-        </a>
+        </Link>
       </p>
     </div>
   );

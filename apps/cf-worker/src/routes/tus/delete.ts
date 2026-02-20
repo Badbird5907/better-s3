@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 
 import type { Bindings, Variables } from "../../types/bindings";
+import { sendUploadCallback } from "../../services/callback";
 import { abortMultipartUpload, deleteObject } from "../../services/r2/upload";
 import {
   deleteUploadMetadata,
@@ -48,6 +49,24 @@ export async function handleTusDelete(
   }
 
   await deleteUploadMetadata(uploadId, c.env);
+
+  // Notify the Next.js server that the upload was aborted/failed
+  try {
+    await sendUploadCallback(
+      {
+        type: "upload-failed",
+        data: {
+          environmentId: metadata.environmentId,
+          fileKeyId: metadata.fileKeyId,
+          projectId: metadata.projectId,
+          error: "Upload aborted via TUS termination",
+        },
+      },
+      c.env,
+    );
+  } catch (error) {
+    console.error("Failed to send upload failure callback:", error);
+  }
 
   return new Response(null, {
     status: HTTP_STATUS.NO_CONTENT,

@@ -47,7 +47,7 @@ function parseRangeHeader(
   rangeHeader: string,
   fileSize: number,
 ): { offset: number; length: number } | null {
-  const match = rangeHeader.match(/^bytes=(\d*)-(\d*)$/);
+  const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
   if (!match) return null;
 
   const start = match[1] ? parseInt(match[1], 10) : undefined;

@@ -1,15 +1,37 @@
+import { headers } from "next/headers";
+
 import { and, eq } from "@app/db";
+import { db } from "@app/db/client";
 import {
   apiKeys,
-  organizations,
-  projects,
+  members,
   projectEnvironments,
+  projects,
 } from "@app/db/schema";
-import { db } from "@app/db/client";
 
-type Organization = typeof organizations.$inferSelect;
+import { auth } from "@/auth/server";
+
 type Project = typeof projects.$inferSelect;
 type ProjectEnvironment = typeof projectEnvironments.$inferSelect;
+
+export function jsonResponse(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify({ data }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export function jsonError(
+  error: string,
+  message: string,
+  status: number,
+  details?: unknown,
+): Response {
+  return new Response(
+    JSON.stringify({ error, message, ...(details ? { details } : {}) }),
+    { status, headers: { "Content-Type": "application/json" } },
+  );
+}
 
 async function hashApiKey(key: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -33,315 +55,139 @@ export function extractApiKeyFromRequest(request: Request): string | null {
   return null;
 }
 
-export interface ApiKeyContext {
-  apiKeyId: string;
-  projectId: string;
+export interface AuthContext {
+  type: "apiKey" | "session";
   organizationId: string;
-  keyName: string;
-  expiresAt: Date | null;
+  projectId?: string;
+  rawApiKey?: string;
+  userId?: string;
 }
 
-export interface ApiKeyContextWithProject extends ApiKeyContext {
-  project: Project;
-  organization: Organization;
-}
+export async function authenticateRequest(
+  request: Request,
+): Promise<AuthContext | Response> {
+  const apiKey = extractApiKeyFromRequest(request);
 
-export interface ApiKeyContextWithEnvironment extends ApiKeyContextWithProject {
-  environment: ProjectEnvironment;
-}
+  if (apiKey) {
+    try {
+      const keyHash = await hashApiKey(apiKey);
 
-export async function validateApiKey(
-  apiKey: string
-): Promise<ApiKeyContext | null> {
-  if (!apiKey) {
-    return null;
+      const key = await db.query.apiKeys.findFirst({
+        where: eq(apiKeys.keyHash, keyHash),
+      });
+
+      if (!key) {
+        return jsonError("Unauthorized", "Invalid or expired API key.", 401);
+      }
+
+      if (key.expiresAt && new Date(key.expiresAt) < new Date()) {
+        return jsonError("Unauthorized", "Invalid or expired API key.", 401);
+      }
+
+      await db
+        .update(apiKeys)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(apiKeys.id, key.id));
+
+      return {
+        type: "apiKey",
+        organizationId: key.organizationId,
+        projectId: key.projectId,
+        rawApiKey: apiKey,
+      };
+    } catch (error) {
+      console.error("Error validating API key:", error);
+      return jsonError("Unauthorized", "Invalid or expired API key.", 401);
+    }
   }
 
-  try {
-    const keyHash = await hashApiKey(apiKey);
+  const session = await auth.api.getSession({ headers: await headers() });
 
-    const key = await db.query.apiKeys.findFirst({
-      where: eq(apiKeys.keyHash, keyHash),
-    });
-
-    if (!key) {
-      return null;
-    }
-
-    if (key.expiresAt && new Date(key.expiresAt) < new Date()) {
-      return null;
-    }
-
-    await db
-      .update(apiKeys)
-      .set({ lastUsedAt: new Date() })
-      .where(eq(apiKeys.id, key.id));
-
-    return {
-      apiKeyId: key.id,
-      projectId: key.projectId,
-      organizationId: key.organizationId,
-      keyName: key.name,
-      expiresAt: key.expiresAt,
-    };
-  } catch (error) {
-    console.error("Error validating API key:", error);
-    return null;
+  if (!session?.user) {
+    return jsonError(
+      "Unauthorized",
+      "Authentication required. Use an API key (Authorization: Bearer <key> or X-API-Key header) or a valid session.",
+      401,
+    );
   }
+
+  const url = new URL(request.url);
+  const organizationId = url.searchParams.get("organizationId");
+
+  if (!organizationId) {
+    return jsonError(
+      "Bad Request",
+      "organizationId query parameter is required for session-based authentication.",
+      400,
+    );
+  }
+
+  const membership = await db.query.members.findFirst({
+    where: and(
+      eq(members.organizationId, organizationId),
+      eq(members.userId, session.user.id),
+    ),
+  });
+
+  if (!membership) {
+    return jsonError(
+      "Forbidden",
+      "You are not a member of this organization.",
+      403,
+    );
+  }
+
+  return {
+    type: "session",
+    organizationId,
+    userId: session.user.id,
+  };
 }
 
-export async function getProjectWithOrg(
+export async function validateProjectAccess(
+  authCtx: AuthContext,
   projectId: string,
-  organizationId: string
-): Promise<{ project: Project; organization: Organization } | null> {
+): Promise<Project | Response> {
+  if (authCtx.type === "apiKey" && authCtx.projectId !== projectId) {
+    return jsonError(
+      "Forbidden",
+      "API key does not have access to this project.",
+      403,
+    );
+  }
+
   const project = await db.query.projects.findFirst({
     where: and(
       eq(projects.id, projectId),
-      eq(projects.parentOrganizationId, organizationId)
+      eq(projects.parentOrganizationId, authCtx.organizationId),
     ),
   });
 
   if (!project) {
-    return null;
+    return jsonError("Not Found", "Project not found.", 404);
   }
 
-  const organization = await db.query.organizations.findFirst({
-    where: eq(organizations.id, organizationId),
-  });
-
-  if (!organization) {
-    return null;
-  }
-
-  return { project, organization };
+  return project;
 }
 
-export async function getEnvironment(
+export async function validateEnvironmentAccess(
   environmentId: string,
-  projectId: string
-): Promise<ProjectEnvironment | null> {
+  projectId: string,
+): Promise<ProjectEnvironment | Response> {
   const environment = await db.query.projectEnvironments.findFirst({
     where: and(
       eq(projectEnvironments.id, environmentId),
-      eq(projectEnvironments.projectId, projectId)
+      eq(projectEnvironments.projectId, projectId),
     ),
   });
 
-  return environment ?? null;
-}
-
-export async function withApiKeyAuth(
-  request: Request,
-  handler: (request: Request, context: ApiKeyContext) => Promise<Response>
-): Promise<Response> {
-  const apiKey = extractApiKeyFromRequest(request);
-
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({
-        error: "Unauthorized",
-        message:
-          "API key is required. Use Authorization: Bearer <key> or X-API-Key header.",
-      }),
-      {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      }
+  if (!environment) {
+    return jsonError(
+      "Not Found",
+      "Environment not found or does not belong to this project.",
+      404,
     );
   }
 
-  const context = await validateApiKey(apiKey);
-
-  if (!context) {
-    return new Response(
-      JSON.stringify({
-        error: "Unauthorized",
-        message: "Invalid or expired API key.",
-      }),
-      {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  }
-
-  return handler(request, context);
-}
-
-export async function withApiKeyAuthProject(
-  request: Request,
-  handler: (
-    request: Request,
-    context: ApiKeyContextWithProject
-  ) => Promise<Response>
-): Promise<Response> {
-  return withApiKeyAuth(request, async (req, baseContext) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return new Response(
-        JSON.stringify({
-          error: "Bad Request",
-          message: "Invalid JSON body",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    if (!body || typeof body !== "object") {
-      return new Response(
-        JSON.stringify({
-          error: "Bad Request",
-          message: "Request body must be a JSON object",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const projectId = (body as Record<string, unknown>).projectId;
-    if (!projectId || typeof projectId !== "string") {
-      return new Response(
-        JSON.stringify({
-          error: "Bad Request",
-          message: "projectId is required in request body",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    if (projectId !== baseContext.projectId) {
-      return new Response(
-        JSON.stringify({
-          error: "Forbidden",
-          message: "API key does not have access to this project",
-        }),
-        {
-          status: 403,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const result = await getProjectWithOrg(
-      projectId,
-      baseContext.organizationId
-    );
-
-    if (!result) {
-      return new Response(
-        JSON.stringify({
-          error: "Not Found",
-          message: "Project not found",
-        }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const newRequest = new Request(req.url, {
-      method: req.method,
-      headers: req.headers,
-      body: JSON.stringify(body),
-    });
-
-    return handler(newRequest, {
-      ...baseContext,
-      project: result.project,
-      organization: result.organization,
-    });
-  });
-}
-
-export async function withApiKeyAuthEnvironment(
-  request: Request,
-  handler: (
-    request: Request,
-    context: ApiKeyContextWithEnvironment
-  ) => Promise<Response>
-): Promise<Response> {
-  return withApiKeyAuthProject(request, async (req, projectContext) => {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return new Response(
-        JSON.stringify({
-          error: "Bad Request",
-          message: "Invalid JSON body",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    if (!body || typeof body !== "object") {
-      return new Response(
-        JSON.stringify({
-          error: "Bad Request",
-          message: "Request body must be a JSON object",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const environmentId = (body as Record<string, unknown>).environmentId;
-    if (!environmentId || typeof environmentId !== "string") {
-      return new Response(
-        JSON.stringify({
-          error: "Bad Request",
-          message: "environmentId is required in request body",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const environment = await getEnvironment(
-      environmentId,
-      projectContext.projectId
-    );
-
-    if (!environment) {
-      return new Response(
-        JSON.stringify({
-          error: "Not Found",
-          message: "Environment not found or does not belong to this project",
-        }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const newRequest = new Request(req.url, {
-      method: req.method,
-      headers: req.headers,
-      body: JSON.stringify(body),
-    });
-
-    return handler(newRequest, {
-      ...projectContext,
-      environment,
-    });
-  });
+  return environment;
 }

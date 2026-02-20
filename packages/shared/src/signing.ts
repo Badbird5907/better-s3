@@ -14,12 +14,7 @@
  * 2. The customer SDK knows the full API key, so it computes SHA256(apiKey) locally
  * 3. The server has the keyHash stored, so it can derive the same signingSecret
  */
-
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+ 
 
 export interface SignedUploadUrlParams {
   environmentId: string;
@@ -184,6 +179,67 @@ export async function generateSignedUploadUrl(
   );
   Object.entries(payload).forEach(([key, value]) => {
     // Skip type as it's not needed in query params
+    if (key !== "type") {
+      url.searchParams.set(key, value);
+    }
+  });
+  url.searchParams.set("sig", signature);
+
+  return url.toString();
+}
+
+/**
+ * Generate a signed upload URL using a stored key hash instead of the full API key.
+ *
+ * Used by server-side dashboard routes that authenticate via session and look up
+ * an API key record from the database (where only the hash is stored).
+ *
+ * @param workerDomain - The worker domain (e.g., "files.evanyu.dev")
+ * @param projectSlug - The project slug (e.g., "myproject-k9x2m7")
+ * @param params - Upload parameters (keyId must be the keyPrefix from the DB record)
+ * @param keyHash - The stored SHA-256 hash of the API key
+ * @param masterSigningSecret - The SIGNING_SECRET from environment
+ */
+export async function generateSignedUploadUrlFromHash(
+  workerDomain: string,
+  projectSlug: string,
+  params: SignedUploadUrlParams,
+  keyHash: string,
+  masterSigningSecret: string,
+): Promise<string> {
+  const signingSecret = await deriveSigningSecretFromHash(keyHash, masterSigningSecret);
+
+  const payload: Record<string, string> = {
+    type: "upload",
+    environmentId: params.environmentId,
+    fileKeyId: params.fileKeyId,
+    accessKey: params.accessKey,
+    fileName: params.fileName,
+    size: params.size.toString(),
+    keyId: params.keyId,
+  };
+
+  if (params.hash) {
+    payload.hash = params.hash;
+  }
+  if (params.mimeType) {
+    payload.mimeType = params.mimeType;
+  }
+  if (params.expiresIn !== undefined) {
+    const expiresAt = Math.floor(Date.now() / 1000) + params.expiresIn;
+    payload.expiresAt = expiresAt.toString();
+  }
+  if (params.isPublic !== undefined) {
+    payload.isPublic = params.isPublic.toString();
+  }
+
+  const signature = await createSignature(payload, signingSecret);
+
+  const protocol = params.protocol ?? "https";
+  const url = new URL(
+    `${protocol}://${projectSlug}.${workerDomain}/ingest/tus`,
+  );
+  Object.entries(payload).forEach(([key, value]) => {
     if (key !== "type") {
       url.searchParams.set(key, value);
     }

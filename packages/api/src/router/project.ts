@@ -2,27 +2,25 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { eq } from "@app/db";
-import { fileAccessTypes, projects } from "@app/db/schema";
+import { fileAccessTypes } from "@app/db/schema";
 
+import {
+  createProject,
+  getProjectById,
+  listProjects,
+  updateProject,
+} from "../service/project";
 import { organizationProcedure } from "../trpc";
 
 export const projectRouter = {
   list: organizationProcedure.query(async ({ ctx }) => {
-    const projectList = await ctx.db.query.projects.findMany({
-      where: eq(projects.parentOrganizationId, ctx.organizationId),
-      orderBy: (projects, { desc }) => [desc(projects.createdAt)],
-    });
-
-    return projectList;
+    return listProjects(ctx.db, ctx.organizationId);
   }),
 
   getById: organizationProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const project = await ctx.db.query.projects.findFirst({
-        where: eq(projects.id, input.id),
-      });
+      const project = await getProjectById(ctx.db, input.id);
 
       if (!project) {
         throw new TRPCError({
@@ -48,35 +46,10 @@ export const projectRouter = {
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const baseSlug = input.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
-
-      const existingProjects = await ctx.db.query.projects.findMany({
-        where: eq(projects.parentOrganizationId, ctx.organizationId),
-        columns: { slug: true },
+      return createProject(ctx.db, {
+        name: input.name,
+        organizationId: ctx.organizationId,
       });
-
-      const existingSlugs = new Set(existingProjects.map((p) => p.slug));
-      let slug = baseSlug;
-      let counter = 1;
-
-      while (existingSlugs.has(slug)) {
-        slug = `${baseSlug}-${counter}`;
-        counter++;
-      }
-
-      const [newProject] = await ctx.db
-        .insert(projects)
-        .values({
-          name: input.name,
-          slug,
-          parentOrganizationId: ctx.organizationId,
-        })
-        .returning();
-
-      return newProject;
     }),
 
   update: organizationProcedure
@@ -88,9 +61,7 @@ export const projectRouter = {
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const project = await ctx.db.query.projects.findFirst({
-        where: eq(projects.id, input.id),
-      });
+      const project = await getProjectById(ctx.db, input.id);
 
       if (!project) {
         throw new TRPCError({
@@ -106,21 +77,10 @@ export const projectRouter = {
         });
       }
 
-      const updates: Partial<typeof projects.$inferInsert> = {};
-      if (input.name !== undefined) updates.name = input.name;
-      if (input.defaultFileAccess !== undefined)
-        updates.defaultFileAccess = input.defaultFileAccess;
-
-      if (Object.keys(updates).length === 0) {
-        return project;
-      }
-
-      const [updated] = await ctx.db
-        .update(projects)
-        .set(updates)
-        .where(eq(projects.id, input.id))
-        .returning();
-
-      return updated;
+      return updateProject(ctx.db, {
+        id: input.id,
+        name: input.name,
+        defaultFileAccess: input.defaultFileAccess,
+      });
     }),
 } satisfies TRPCRouterRecord;

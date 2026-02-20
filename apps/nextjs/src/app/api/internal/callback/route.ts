@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { markUploadAsFailed, UploadFailureError } from "@app/api/services";
 import { eq, sql } from "@app/db";
 import { db } from "@app/db/client";
 import {
@@ -194,6 +195,7 @@ export async function POST(request: Request) {
             claimedHash: data.claimedHash,
             claimedMimeType: data.claimedMimeType,
             claimedSize: data.claimedSize,
+            status: "completed",
             uploadCompletedAt: new Date(),
             uploadFailedAt: null,
             isPublic: data.isPublic ?? false,
@@ -215,6 +217,7 @@ export async function POST(request: Request) {
             claimedHash: data.claimedHash,
             claimedMimeType: data.claimedMimeType,
             claimedSize: data.claimedSize,
+            status: "completed",
             uploadCompletedAt: new Date(),
             isPublic: data.isPublic ?? false,
           })
@@ -273,39 +276,34 @@ export async function POST(request: Request) {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   } else if (type === "upload-failed") {
     try {
-      const existingFileKey = await db.query.fileKeys.findFirst({
-        where: eq(fileKeys.id, data.fileKeyId),
+      await markUploadAsFailed(db, {
+        projectId: data.projectId,
+        environmentId: data.environmentId,
+        fileKeyId: data.fileKeyId,
+        error: data.error,
       });
-
-      if (existingFileKey) {
-        await db
-          .update(fileKeys)
-          .set({
-            uploadFailedAt: new Date(),
-          })
-          .where(eq(fileKeys.id, data.fileKeyId));
-      }
-
-      // Publish message for real-time updates (non-blocking)
-      try {
-        await publishMessage(`upload:${data.fileKeyId}`, {
-          type: "upload-failed",
-          data: {
-            fileKeyId: data.fileKeyId,
-            error: data.error ?? "Upload failed",
-          },
-        });
-      } catch (pubError) {
-        console.error("Failed to publish upload failure message:", pubError);
-      }
-
-      void trackUsageEvent("upload_failed", data.projectId, data.environmentId);
 
       return new Response(JSON.stringify({ success: true, status: "failed" }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
     } catch (error) {
+      // If the fileKey doesn't exist or is already in a terminal state,
+      // still return success to the worker since there's nothing to retry.
+      if (error instanceof UploadFailureError) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            status: "failed",
+            note: error.message,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+
       console.error("Error processing upload failure:", error);
       return new Response(JSON.stringify({ error: "Internal server error" }), {
         status: 500,

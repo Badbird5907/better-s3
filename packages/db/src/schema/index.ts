@@ -20,6 +20,12 @@ export const fileAccessTypes = pgEnum("file_access_types", [
   "private",
 ]);
 
+export const fileKeyStatus = pgEnum("file_key_status", [
+  "pending",
+  "completed",
+  "failed",
+]);
+
 export const projects = pgTable("projects", {
   id: text("id")
     .primaryKey()
@@ -84,40 +90,48 @@ export const files = pgTable("files", {
     .notNull(),
 });
 
-export const fileKeys = pgTable("file_keys", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => nanoid(16)),
-  fileName: text("file_name").notNull(),
-  accessKey: text("access_key")
-    .notNull(),
-  fileId: text("file_id").references(() => files.id, { onDelete: "cascade" }), // nullable - null means pending upload
-  isPublic: boolean("is_public").notNull().default(false), // resolved from project.defaultFileAccess at creation if not explicitly set
-  environmentId: text("environment_id")
-    .references(() => projectEnvironments.id, { onDelete: "cascade" })
-    .notNull(),
-  projectId: text("project_id")
-    .references(() => projects.id, { onDelete: "cascade" })
-    .notNull(),
-  metadata: jsonb("metadata").notNull(),
+// this represents a upload/intent to upload a file
+export const fileKeys = pgTable(
+  "file_keys",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid(16)),
+    fileName: text("file_name").notNull(),
+    accessKey: text("access_key").notNull(),
+    fileId: text("file_id").references(() => files.id, { onDelete: "cascade" }), // nullable - null means pending upload
+    isPublic: boolean("is_public").notNull().default(false), // resolved from project.defaultFileAccess at creation if not explicitly set
+    environmentId: text("environment_id")
+      .references(() => projectEnvironments.id, { onDelete: "cascade" })
+      .notNull(),
+    projectId: text("project_id")
+      .references(() => projects.id, { onDelete: "cascade" })
+      .notNull(),
+    metadata: jsonb("metadata").notNull(),
 
-  // Claimed values from signed URL (for validation)
-  claimedHash: text("claimed_hash"), // optional - if provided, worker validates against actual
-  claimedMimeType: text("claimed_mime_type"), // optional - if provided, worker validates
-  claimedSize: integer("claimed_size").notNull(), // required - for quota/validation
+    // Claimed values from signed URL (for validation)
+    claimedHash: text("claimed_hash"), // optional - if provided, worker validates against actual
+    claimedMimeType: text("claimed_mime_type"), // optional - if provided, worker validates
+    claimedSize: integer("claimed_size").notNull(), // required - for quota/validation
 
-  // Upload state tracking
-  uploadCompletedAt: timestamp("upload_completed_at"),
-  uploadFailedAt: timestamp("upload_failed_at"),
+    // Upload state tracking
+    status: fileKeyStatus("status").notNull().default("pending"),
+    uploadCompletedAt: timestamp("upload_completed_at"),
+    uploadFailedAt: timestamp("upload_failed_at"),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-}, (table) => [
-  uniqueIndex("file_keys_project_access_key_idx").on(table.projectId, table.accessKey),
-]);
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("file_keys_project_access_key_idx").on(
+      table.projectId,
+      table.accessKey,
+    ),
+  ],
+);
 
 // Note: uploadIntents table has been removed and merged into fileKeys
 // fileKeys now tracks upload state via nullable fileId (null = pending)

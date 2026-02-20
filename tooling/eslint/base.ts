@@ -85,4 +85,8 @@ export const baseConfig = defineConfig(
       },
     },
   },
+  // env.ts files are the t3-env validation layer and are explicitly allowed
+  // to access process.env — disable the turbo rule for them since the plugin
+  // has a known bug with ESLint's --cache flag when run from subdirectories
+  { files: ["**/env.ts"], rules: { "turbo/no-undeclared-env-vars": "off" } },
 );

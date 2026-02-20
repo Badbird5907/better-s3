@@ -84,7 +84,7 @@ export function ApiKeysList({ projectId, organizationId }: ApiKeysListProps) {
 
   if (apiKeysQuery.isLoading) {
     return (
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
@@ -110,7 +110,7 @@ export function ApiKeysList({ projectId, organizationId }: ApiKeysListProps) {
   const apiKeys = apiKeysQuery.data ?? [];
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">

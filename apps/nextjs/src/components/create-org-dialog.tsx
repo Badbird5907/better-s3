@@ -102,7 +102,7 @@ export function CreateOrgDialog({
                 autoComplete="off"
               />
               <p className="text-muted-foreground text-xs">
-                Your organization will be accessible at /org/{slug ?? "..."}
+                Your organization will be accessible at /org/{slug}
               </p>
             </div>
           </div>
