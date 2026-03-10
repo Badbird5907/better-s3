@@ -7,7 +7,7 @@ import {
   DownloadIcon,
   FileIcon,
   HardDriveIcon,
-  TrendingUpIcon,
+  UploadIcon,
 } from "lucide-react";
 import {
   Area,
@@ -188,7 +188,7 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
             title="Uploads"
             value={stats?.totals.uploadsCompleted ?? 0}
             description={`${stats?.totals.uploadsFailed ?? 0} failed`}
-            icon={TrendingUpIcon}
+            icon={UploadIcon}
           />
           <StatCard
             title="Downloads"
