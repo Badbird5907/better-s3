@@ -2,7 +2,6 @@
 
 import type { ColumnDef, Row } from "@tanstack/react-table";
 import type { LucideIcon } from "lucide-react";
-import * as React from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -84,7 +83,7 @@ function DataTable<TData, TValue>({
                 </div>
               </TableCell>
             </TableRow>
-          ) : table.getRowModel().rows?.length ? (
+          ) : table.getRowModel().rows.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}

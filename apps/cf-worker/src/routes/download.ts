@@ -47,7 +47,7 @@ function parseRangeHeader(
   rangeHeader: string,
   fileSize: number,
 ): { offset: number; length: number } | null {
-  const match = rangeHeader.match(/^bytes=(\d*)-(\d*)$/);
+  const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
   if (!match) return null;
 
   const start = match[1] ? parseInt(match[1], 10) : undefined;
@@ -73,26 +73,21 @@ export async function handleDownload(
   const accessKey = c.req.param("accessKey");
   const projectId = c.get("projectId");
 
-  // Extract signature params early for fail-fast validation
   const signature = c.req.query("sig");
   const expiresAt = c.req.query("expiresAt");
 
-  // Fail-fast: Check expiry before any I/O operations
-  if (expiresAt) {
+  if (expiresAt) { // check key expiry early
     const now = Math.floor(Date.now() / 1000);
     if (parseInt(expiresAt, 10) < now) {
       throw Errors.unauthorized("Signed URL has expired");
     }
   }
 
-  // Check for conditional GET headers early
   const ifNoneMatch = c.req.header("If-None-Match");
   const rangeHeader = c.req.header("Range");
 
-  // Use cached file key lookup
   const fileKey = await getCachedFileKey(accessKey, projectId, c.env);
 
-  // Validate signature for private files
   if (!fileKey.isPublic) {
     if (!signature || !expiresAt) {
       throw Errors.unauthorized("Signature required for private files");
@@ -110,7 +105,6 @@ export async function handleDownload(
     }
   }
 
-  // Handle conditional GET - return 304 if client has current version
   const etag = fileKey.file.hash ?? `"${fileKey.file.id}"`;
   if (ifNoneMatch && ifNoneMatch === etag) {
     return new Response(null, {
@@ -125,7 +119,6 @@ export async function handleDownload(
   const fileName = c.req.query("fileName") ?? fileKey.fileName;
   const fileSize = fileKey.file.size;
 
-  // Handle range requests for partial content
   let object: R2ObjectBody | null;
   let isPartialContent = false;
   let rangeStart = 0;
@@ -141,7 +134,6 @@ export async function handleDownload(
       rangeStart = range.offset;
       rangeEnd = range.offset + range.length - 1;
     } else {
-      // Invalid range format, fetch full object
       object = await c.env.R2_BUCKET.get(fileKey.file.adapterKey);
     }
   } else {
@@ -159,7 +151,6 @@ export async function handleDownload(
   headers.set("ETag", etag);
   headers.set("Accept-Ranges", "bytes");
 
-  // Track download asynchronously (don't block response)
   c.executionCtx.waitUntil(
     trackDownload(
       {

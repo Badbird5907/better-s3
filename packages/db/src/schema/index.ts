@@ -99,6 +99,7 @@ export const fileKeys = pgTable("file_keys", {
   projectId: text("project_id")
     .references(() => projects.id, { onDelete: "cascade" })
     .notNull(),
+  expiresAt: timestamp("expires_at", { mode: "date" }),
   metadata: jsonb("metadata").notNull(),
 
   // Claimed values from signed URL (for validation)
@@ -118,9 +119,6 @@ export const fileKeys = pgTable("file_keys", {
 }, (table) => [
   uniqueIndex("file_keys_project_access_key_idx").on(table.projectId, table.accessKey),
 ]);
-
-// Note: uploadIntents table has been removed and merged into fileKeys
-// fileKeys now tracks upload state via nullable fileId (null = pending)
 
 // Relations
 export const projectsRelations = relations(projects, ({ one, many }) => ({

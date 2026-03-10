@@ -27,11 +27,11 @@ import {
   useSidebar,
 } from "@app/ui/components/sidebar";
 
-export type User = {
+export interface User {
   name: string;
   email: string;
   avatar?: string;
-};
+}
 
 interface NavUserProps {
   user: User;

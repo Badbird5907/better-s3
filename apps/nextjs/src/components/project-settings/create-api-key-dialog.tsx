@@ -45,21 +45,22 @@ export function CreateApiKeyDialog({
   const [expirationOption, setExpirationOption] =
     React.useState<string>("never");
   const [createdKey, setCreatedKey] = React.useState<string | null>(null);
+  const [createdSigningSecret, setCreatedSigningSecret] = React.useState<
+    string | null
+  >(null);
   const [copied, setCopied] = React.useState(false);
+  const [copiedSecret, setCopiedSecret] = React.useState(false);
 
-  const environmentsQuery = useQuery(
-    {
-      ...trpc.apiKey.getEnvironments.queryOptions(
-        { projectId, organizationId },
-      ),
-      enabled: open && !!organizationId,
-    },
-  );
+  const environmentsQuery = useQuery({
+    ...trpc.apiKey.getEnvironments.queryOptions({ projectId, organizationId }),
+    enabled: open && !!organizationId,
+  });
 
   const createMutation = useMutation(
     trpc.apiKey.create.mutationOptions({
       onSuccess: (data) => {
         setCreatedKey(data.key);
+        setCreatedSigningSecret(data.signingSecret);
         onCreated?.();
       },
       onError: (error: { message?: string }) => {
@@ -112,6 +113,14 @@ export function CreateApiKeyDialog({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCopySigningSecret = async () => {
+    if (!createdSigningSecret) return;
+    await navigator.clipboard.writeText(createdSigningSecret);
+    setCopiedSecret(true);
+    toast.success("Signing secret copied to clipboard");
+    setTimeout(() => setCopiedSecret(false), 2000);
+  };
+
   const handleClose = () => {
     setOpen(false);
     // Reset form after dialog closes
@@ -120,7 +129,9 @@ export function CreateApiKeyDialog({
       setEnvironmentId("all");
       setExpirationOption("never");
       setCreatedKey(null);
+      setCreatedSigningSecret(null);
       setCopied(false);
+      setCopiedSecret(false);
       createMutation.reset();
     }, 200);
   };
@@ -155,27 +166,55 @@ export function CreateApiKeyDialog({
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">
-              <div className="space-y-2">
-                <Label>Your API Key</Label>
-                <div className="flex items-center gap-2">
-                  <code className="bg-muted flex-1 rounded-md border px-3 py-2 font-mono text-sm break-all">
-                    {createdKey}
-                  </code>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleCopyKey}
-                    className="shrink-0"
-                  >
-                    {copied ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Your API Key</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="bg-muted flex-1 rounded-md border px-3 py-2 font-mono text-sm break-all">
+                      {createdKey}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleCopyKey}
+                      className="shrink-0"
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
+                {createdSigningSecret && (
+                  <div className="space-y-2">
+                    <Label>Signing Secret</Label>
+                    <div className="flex items-center gap-2">
+                      <code className="bg-muted flex-1 rounded-md border px-3 py-2 font-mono text-sm break-all">
+                        {createdSigningSecret}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleCopySigningSecret}
+                        className="shrink-0"
+                      >
+                        {copiedSecret ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      Use this to self-sign upload URLs from your server without
+                      calling the /upload endpoint.
+                    </p>
+                  </div>
+                )}
                 <p className="text-muted-foreground text-xs">
-                  Store this key securely. It will not be shown again.
+                  Store these securely. They will not be shown again.
                 </p>
               </div>
             </div>

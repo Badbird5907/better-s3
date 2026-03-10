@@ -1,19 +1,17 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
+import type { SQL } from "drizzle-orm";
 import {
   and,
   asc,
   count,
   desc,
   eq,
-  gte,
   ilike,
   isNotNull,
   isNull,
-  lte,
   or,
-  sql,
-  SQL,
+  sql
 } from "drizzle-orm";
 import { z } from "zod/v4";
 

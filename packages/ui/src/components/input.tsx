@@ -1,25 +1,79 @@
+import type { VariantProps } from "class-variance-authority";
 import * as React from "react";
+import { cva } from "class-variance-authority";
 
-import { cn } from "@app/ui/lib/utils";
+import { cn } from "../lib/utils";
 
-function Input({
-  className,
-  type,
-  ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      type={type}
-      data-slot="input"
-      className={cn(
-        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-        className,
-      )}
-      {...props}
-    />
-  );
+export const inputVariants = cva(
+  "placeholder:text-muted-foreground aria-invalid:ring-destructive aria-invalid:focus-within:ring-destructive flex h-10 w-full items-center border border-transparent bg-transparent px-3 py-2 text-sm file:border-0 file:text-sm file:font-medium focus-within:outline-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-1 aria-invalid:focus-within:ring-2",
+  {
+    variants: {
+      rounded: {
+        none: "rounded-none",
+        md: "rounded-md",
+      },
+      variant: {
+        outline:
+          "border-borde focus-within:border-primary focus-within:shadow-[0_0px_0px_1px_hsl(var(--primary))] aria-invalid:border-transparent",
+        filled:
+          "bg-background focus-within:border-primary border-2 focus-within:bg-transparent",
+        underlined:
+          "border-b-border focus-within:border-b-primary rounded-none focus-within:shadow-[0_1px_0px_0px_hsl(var(--primary))]",
+        unstyled: "",
+      },
+    },
+    defaultVariants: {
+      rounded: "md",
+      variant: "outline",
+    },
+  },
+);
+
+export interface InputProps
+  extends
+    React.InputHTMLAttributes<HTMLInputElement>,
+    VariantProps<typeof inputVariants> {
+  startContent?: React.ReactNode;
+  endContent?: React.ReactNode;
 }
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  (
+    { className, rounded, variant, startContent, endContent, ...props },
+    ref,
+  ) => {
+    return (
+      <div
+        className={cn(
+          inputVariants({ variant, rounded, className }),
+          className,
+        )}
+      >
+        {startContent && (
+          <span className="text-muted-foreground pointer-events-none flex items-center">
+            {startContent}
+          </span>
+        )}
+        <input
+          ref={ref}
+          {...props}
+          className={cn(
+            "w-full bg-transparent outline-none [-moz-appearance:textfield] focus-visible:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+            {
+              "pl-1.5": !!startContent,
+              "pr-1.5": !!endContent,
+            },
+          )}
+        />
+        {endContent && (
+          <span className="text-muted-foreground pointer-events-none flex items-center">
+            {endContent}
+          </span>
+        )}
+      </div>
+    );
+  },
+);
+Input.displayName = "Input";
 
 export { Input };

@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { notFound } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -31,6 +31,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@app/ui/components/chart";
+import { DateRangePicker } from "@app/ui/components/date-range-picker";
 import { Skeleton } from "@app/ui/components/skeleton";
 
 import { useOrganization } from "@/hooks/use-organization";
@@ -42,6 +43,35 @@ interface AnalyticsPageProps {
     orgSlug: string;
     projectId: string;
   }>;
+}
+
+const DEFAULT_ANALYTICS_DAYS = 14;
+
+interface AnalyticsDateRange {
+  from: Date;
+  to: Date;
+}
+
+interface PickerDateRange {
+  from?: Date;
+  to?: Date;
+}
+
+function getDefaultAnalyticsRange() {
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+
+  const start = new Date(end);
+  start.setDate(end.getDate() - (DEFAULT_ANALYTICS_DAYS - 1));
+
+  return { from: start, to: end };
+}
+
+function formatDateParam(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function formatBytes(bytes: number): string {
@@ -56,6 +86,9 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
   const trpc = useTRPC();
   const { organization } = useOrganization();
   const organizationId = organization?.id ?? "";
+  const [dateRange, setDateRange] = useState<AnalyticsDateRange>(() =>
+    getDefaultAnalyticsRange(),
+  );
 
   const { projectId } = use(params);
 
@@ -68,27 +101,32 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
 
   const analyticsQuery = useQuery(
     trpc.analytics.getProjectStats.queryOptions(
-      { projectId, organizationId },
+      {
+        projectId,
+        organizationId,
+        startDate: formatDateParam(dateRange.from),
+        endDate: formatDateParam(dateRange.to),
+      },
       { enabled: !!organizationId && !!projectId },
     ),
   );
 
   if (projectQuery.isLoading || !organizationId) {
     return (
-        <div className="flex flex-1 flex-col gap-4 p-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader className="pb-2">
-                  <Skeleton className="h-4 w-24" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-16" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
+      </div>
     );
   }
 
@@ -119,6 +157,25 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
   return (
     <>
       <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="flex w-full">
+          <h1 className="text-2xl font-bold">Analytics</h1>
+          <div className="flex justify-end ml-auto">
+            <DateRangePicker
+              className="w-[320px]"
+              value={dateRange}
+              onChange={(range: PickerDateRange | undefined) => {
+                if (!range?.from) {
+                  return;
+                }
+                setDateRange({
+                  from: range.from,
+                  to: range.to ?? range.from,
+                });
+              }}
+            />
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total Storage"
@@ -142,7 +199,7 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
             title="Data Transferred"
             value={formatBytes(
               (stats?.totals.bytesUploaded ?? 0) +
-                (stats?.totals.bytesDownloaded ?? 0),
+              (stats?.totals.bytesDownloaded ?? 0),
             )}
             description="Upload + Download"
             icon={FileIcon}
@@ -154,7 +211,7 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
             <CardHeader>
               <CardTitle>Upload Activity</CardTitle>
               <CardDescription>
-                Completed and failed uploads over the last 30 days
+                Completed and failed uploads in the selected range
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -218,7 +275,7 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
             <CardHeader>
               <CardTitle>Download Activity</CardTitle>
               <CardDescription>
-                File downloads over the last 30 days
+                File downloads in the selected range
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -279,7 +336,7 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
           <CardHeader>
             <CardTitle>Bandwidth Usage</CardTitle>
             <CardDescription>
-              Data uploaded and downloaded over the last 30 days
+              Data uploaded and downloaded in the selected range
             </CardDescription>
           </CardHeader>
           <CardContent>

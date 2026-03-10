@@ -12,6 +12,29 @@ import {
 
 import { organizationProcedure } from "../trpc";
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+function backfillDailyData<T extends { date: string }>(
+  dailyData: T[],
+  startDate: string,
+  endDate: string,
+  createZeroRow: (date: string) => T,
+) {
+  const dataByDate = new Map(dailyData.map((entry) => [entry.date, entry]));
+
+  const filledData: T[] = [];
+  for (
+    let currentDate = new Date(`${startDate}T00:00:00.000Z`);
+    currentDate <= new Date(`${endDate}T00:00:00.000Z`);
+    currentDate = new Date(currentDate.getTime() + DAY_IN_MS)
+  ) {
+    const date = currentDate.toISOString().slice(0, 10);
+    filledData.push(dataByDate.get(date) ?? createZeroRow(date));
+  }
+
+  return filledData;
+}
+
 export const analyticsRouter = {
   getProjectStats: organizationProcedure
     .input(
@@ -87,9 +110,24 @@ export const analyticsRouter = {
 
       const totalStorage = storageResult[0]?.totalBytes ?? 0;
       const fileCount = storageResult[0]?.fileCount ?? 0;
+      const dailyStatsWithBackfill = backfillDailyData(
+        dailyStats,
+        startDate,
+        endDate,
+        (date) => ({
+          date,
+          uploadsStarted: 0,
+          uploadsCompleted: 0,
+          uploadsFailed: 0,
+          downloads: 0,
+          bytesUploaded: 0,
+          bytesDownloaded: 0,
+          storageBytes: 0,
+        }),
+      );
 
       return {
-        daily: dailyStats,
+        daily: dailyStatsWithBackfill,
         totals: {
           uploadsStarted: Number(totals[0]?.totalUploadsStarted ?? 0),
           uploadsCompleted: Number(totals[0]?.totalUploadsCompleted ?? 0),
@@ -179,9 +217,23 @@ export const analyticsRouter = {
         totalStorage = Number(storageResult[0]?.totalBytes ?? 0);
         fileCount = storageResult[0]?.fileCount ?? 0;
       }
+      const dailyStatsWithBackfill = backfillDailyData(
+        dailyStats,
+        startDate,
+        endDate,
+        (date) => ({
+          date,
+          uploadsStarted: 0,
+          uploadsCompleted: 0,
+          uploadsFailed: 0,
+          downloads: 0,
+          bytesUploaded: 0,
+          bytesDownloaded: 0,
+        }),
+      );
 
       return {
-        daily: dailyStats,
+        daily: dailyStatsWithBackfill,
         totals: {
           uploadsStarted: Number(totals[0]?.totalUploadsStarted ?? 0),
           uploadsCompleted: Number(totals[0]?.totalUploadsCompleted ?? 0),

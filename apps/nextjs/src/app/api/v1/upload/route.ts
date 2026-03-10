@@ -1,8 +1,6 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { db } from "@app/db/client";
-import { fileKeys } from "@app/db/schema";
 import { generateSignedUploadUrl } from "@app/shared/signing";
 
 import { env } from "../../../../env";
@@ -26,7 +24,6 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  // Extract and validate API key
   const apiKey = extractApiKeyFromRequest(request);
 
   if (!apiKey) {
@@ -58,7 +55,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Parse request body
   let body: unknown;
   try {
     body = await request.json();
@@ -75,7 +71,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Validate request body
   const result = schema.safeParse(body);
   if (!result.success) {
     return new Response(
@@ -100,10 +95,8 @@ export async function POST(request: Request) {
     mimeType,
     hash,
     isPublic,
-    metadata,
   } = result.data;
 
-  // Verify project access
   if (projectId !== context.projectId) {
     return new Response(
       JSON.stringify({
@@ -117,7 +110,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Get project with organization
   const projectResult = await getProjectWithOrg(
     projectId,
     context.organizationId,
@@ -135,7 +127,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Verify environment
   const environment = await getEnvironment(environmentId, projectId);
   if (!environment) {
     return new Response(
@@ -151,43 +142,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Generate a unique file key ID
     const fileKeyId = nanoid(16);
 
-    // Resolve isPublic: use explicit value if provided, otherwise use project default
     const resolvedIsPublic =
       isPublic ?? projectResult.project.defaultFileAccess === "public";
 
-    // Create the fileKey record (pending upload)
-    const [newFileKey] = await db
-      .insert(fileKeys)
-      .values({
-        id: fileKeyId,
-        accessKey,
-        fileName,
-        projectId,
-        environmentId,
-        fileId: null, // null = pending upload
-        isPublic: resolvedIsPublic,
-        metadata: metadata ?? {},
-        claimedSize: size,
-        claimedMimeType: mimeType ?? null,
-        claimedHash: hash ?? null,
-      })
-      .returning();
-
-    if (!newFileKey) {
-      throw new Error("Failed to create file key record");
-    }
-
-    // Extract key prefix (sk-bs3-xxxx) for signature verification
     const keyId = apiKey.substring(0, 11);
 
-    // Determine protocol based on environment (use http for local development)
     const isDevelopment = env.NODE_ENV === "development";
     const protocol = isDevelopment ? "http" : "https";
 
-    // Generate signed upload URL
     const uploadUrl = await generateSignedUploadUrl(
       env.WORKER_DOMAIN,
       projectResult.project.slug,
@@ -212,7 +176,7 @@ export async function POST(request: Request) {
       JSON.stringify({
         uploadUrl,
         fileKeyId,
-        accessKey: newFileKey.accessKey,
+        accessKey,
         expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
       }),
       {

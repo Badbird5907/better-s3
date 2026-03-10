@@ -15,11 +15,11 @@
  * 3. The server has the keyHash stored, so it can derive the same signingSecret
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+ 
+ 
+ 
+ 
+ 
 
 export interface SignedUploadUrlParams {
   environmentId: string;
@@ -194,6 +194,74 @@ export async function generateSignedUploadUrl(
 }
 
 /**
+ * Generate a signed upload URL using a pre-derived signing secret.
+ *
+ * Use this when you already have the signingSecret (returned at API key creation time)
+ * and want to self-sign upload URLs from your server without calling the /upload endpoint.
+ *
+ * Flow:
+ * 1. Create API key via dashboard -> receive signingSecret (shown once)
+ * 2. On your server, call this function to generate a signed TUS upload URL
+ * 3. Hand the signed URL to the browser for direct upload to the Cloudflare Worker
+ * 4. The Worker verifies the signature and handles the upload + callback
+ *
+ * Note: The callback endpoint will create the fileKey record on upload completion
+ * even if you didn't pre-create it via POST /api/v1/upload.
+ *
+ * @param workerDomain - The worker domain (e.g., "files.evanyu.dev")
+ * @param projectSlug - The project slug (e.g., "myproject-k9x2m7")
+ * @param params - Upload parameters
+ * @param signingSecret - The pre-derived signing secret (returned at API key creation)
+ */
+export async function generateSignedUploadUrlWithSecret(
+  workerDomain: string,
+  projectSlug: string,
+  params: SignedUploadUrlParams,
+  signingSecret: string,
+): Promise<string> {
+  const payload: Record<string, string> = {
+    type: "upload",
+    environmentId: params.environmentId,
+    fileKeyId: params.fileKeyId,
+    accessKey: params.accessKey,
+    fileName: params.fileName,
+    size: params.size.toString(),
+    keyId: params.keyId,
+  };
+
+  // Add optional params if provided
+  if (params.hash) {
+    payload.hash = params.hash;
+  }
+  if (params.mimeType) {
+    payload.mimeType = params.mimeType;
+  }
+  if (params.expiresIn !== undefined) {
+    const expiresAt = Math.floor(Date.now() / 1000) + params.expiresIn;
+    payload.expiresAt = expiresAt.toString();
+  }
+  if (params.isPublic !== undefined) {
+    payload.isPublic = params.isPublic.toString();
+  }
+
+  const signature = await createSignature(payload, signingSecret);
+
+  const protocol = params.protocol ?? "https";
+  const url = new URL(
+    `${protocol}://${projectSlug}.${workerDomain}/ingest/tus`,
+  );
+  Object.entries(payload).forEach(([key, value]) => {
+    // Skip type as it's not needed in query params
+    if (key !== "type") {
+      url.searchParams.set(key, value);
+    }
+  });
+  url.searchParams.set("sig", signature);
+
+  return url.toString();
+}
+
+/**
  * Generate a signed download URL
  *
  * @param workerDomain - The worker domain (e.g., "files.evanyu.dev")
@@ -296,7 +364,9 @@ export async function verifySignedUploadUrl(
   const expiresAtStr = urlObj.searchParams.get("expiresAt");
 
   if (!fileName || !sizeStr || !keyId || !accessKey) {
-    throw new Error("Missing required parameters: fileName, size, keyId, or accessKey");
+    throw new Error(
+      "Missing required parameters: fileName, size, keyId, or accessKey",
+    );
   }
 
   const size = parseInt(sizeStr, 10);

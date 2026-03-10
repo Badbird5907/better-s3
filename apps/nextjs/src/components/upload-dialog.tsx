@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@app/ui/components/select";
+import { nanoid } from "nanoid";
 
 interface Environment {
   id: string;
@@ -95,6 +96,7 @@ export function UploadDialog({
         body: JSON.stringify({
           projectId,
           environmentId: selectedEnvId,
+          accessKey: createAccessKey(),
           fileName: selectedFile.name,
           size: selectedFile.size,
           mimeType: selectedFile.type || undefined,
@@ -331,4 +333,8 @@ function formatFileSize(bytes: number): string {
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
+function createAccessKey(): string {
+  return nanoid(16);
 }

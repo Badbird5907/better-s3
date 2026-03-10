@@ -11,6 +11,7 @@ import {
   projects,
   users,
 } from "@app/db/schema";
+import { deriveSigningSecretFromHash } from "@app/shared/signing";
 
 import { organizationProcedure } from "../trpc";
 
@@ -153,6 +154,21 @@ export const apiKeyRouter = {
       const keyPrefix = fullKey.substring(0, 11);
       const keyHash = await hashApiKey(fullKey);
 
+      // Derive the signing secret so the customer can self-sign upload URLs
+      // without calling the /upload endpoint. This is the only time we have
+      // both the keyHash and the SIGNING_SECRET together with the full key.
+      const masterSigningSecret = process.env.SIGNING_SECRET;
+      if (!masterSigningSecret) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Server signing configuration is missing",
+        });
+      }
+      const signingSecret = await deriveSigningSecretFromHash(
+        keyHash,
+        masterSigningSecret,
+      );
+
       const [newKey] = await ctx.db
         .insert(apiKeys)
         .values({
@@ -171,6 +187,7 @@ export const apiKeyRouter = {
         id: newKey?.id,
         name: newKey?.name,
         key: fullKey,
+        signingSecret,
         keyPrefix: newKey?.keyPrefix,
         environmentId: newKey?.environmentId,
         expiresAt: newKey?.expiresAt,
