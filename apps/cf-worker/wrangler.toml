@@ -1,4 +1,4 @@
-name = "better-s3-worker"
+name = "silo-worker"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
@@ -6,8 +6,8 @@ compatibility_flags = ["nodejs_compat"]
 # R2 bucket for uploads (configure with your bucket name)
 [[r2_buckets]]
 binding = "R2_BUCKET"
-bucket_name = "better-s3-uploads"
-preview_bucket_name = "better-s3-uploads-preview"
+bucket_name = "silo-uploads"
+preview_bucket_name = "silo-uploads-preview"
 
 # KV namespaces for TUS protocol
 # For production: Create with `wrangler kv namespace create "TUS_METADATA"` and fill in IDs
@@ -28,13 +28,13 @@ TUS_EXPIRATION_HOURS = "24"
 
 # Development environment
 [env.development]
-name = "better-s3-worker-dev"
+name = "silo-worker-dev"
 vars.WORKER_DOMAIN = "lvh.me:8787"
 vars.NEXTJS_CALLBACK_URL = "http://localhost:3000"
 
 # Production environment (override these values)
 [env.production]
-name = "better-s3-worker"
+name = "silo-worker"
 vars.WORKER_DOMAIN = "files.evanyu.dev"
 vars.NEXTJS_CALLBACK_URL = "https://your-nextjs-app.com"  # TODO: Set your production URL
 

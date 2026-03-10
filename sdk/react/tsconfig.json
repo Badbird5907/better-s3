@@ -1,0 +1,9 @@
+{
+  "extends": "@app/tsconfig/compiled-package.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "lib": ["ES2022", "WebWorker"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

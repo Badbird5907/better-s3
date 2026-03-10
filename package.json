@@ -25,6 +25,8 @@
     "lint:ws": "pnpm dlx sherif@latest",
     "preinstall": "pnpm auto-export",
     "postinstall": "pnpm lint:ws",
+    "sdk:build": "pnpm --filter @app/sdk-core --filter @app/sdk-react build",
+    "sdk:typecheck": "pnpm --filter @app/sdk-core --filter @app/sdk-react typecheck",
     "typecheck": "turbo run typecheck",
     "ui-add": "pnpm -F @app/ui ui-add"
   },
