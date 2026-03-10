@@ -87,7 +87,7 @@ export default function ProjectsPage() {
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {projectsQuery.data?.map((project) => (
-              <Link key={project.id} href={`/${orgSlug}/project/${project.id}`}>
+              <Link key={project.id} href={`/${orgSlug}/p/${project.id}`}>
                 <Card className="group overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:border-primary/50 h-full flex flex-col">
                   <CardHeader className="pb-4 flex-1">
                     <div className="flex items-start justify-between mb-4">

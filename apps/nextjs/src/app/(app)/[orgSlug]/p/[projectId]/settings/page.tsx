@@ -1,13 +1,14 @@
 "use client";
 
 import { use } from "react";
-import { notFound } from "next/navigation";
+import { notFound, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { Skeleton } from "@silo/ui/components/skeleton";
 
 import {
   ApiKeysList,
+  CreatePersonalEnvironmentWizard,
   EnvironmentsList,
   ProjectGeneralSettings,
 } from "@/components/project-settings";
@@ -25,11 +26,14 @@ export default function ProjectSettingsPage({
   params,
 }: ProjectSettingsPageProps) {
   const trpc = useTRPC();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { organization } = useOrganization();
   const organizationId = organization?.id ?? "";
 
-  // Unwrap params
   const { projectId } = use(params);
+  const shouldAutoOpenWizard = searchParams.get("createDevEnv") === "1";
 
   const projectQuery = useQuery(
     trpc.project.getById.queryOptions(
@@ -69,6 +73,24 @@ export default function ProjectSettingsPage({
           organizationId={organizationId}
         />
         <ApiKeysList projectId={projectId} organizationId={organizationId} />
+        <CreatePersonalEnvironmentWizard
+          projectId={projectId}
+          organizationId={organizationId}
+          autoOpen={shouldAutoOpenWizard}
+          onCreated={() => {
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete("createDevEnv");
+            const query = params.toString();
+            router.replace(query ? `${pathname}?${query}` : pathname);
+          }}
+          onOpenChange={(open) => {
+            if (open || !shouldAutoOpenWizard) return;
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete("createDevEnv");
+            const query = params.toString();
+            router.replace(query ? `${pathname}?${query}` : pathname);
+          }}
+        />
       </div>
     </>
   );

@@ -34,6 +34,7 @@ interface Environment {
 interface UploadDialogProps {
   projectId: string;
   environments: Environment[];
+  defaultEnvironmentId?: string;
   onUploadComplete?: () => void;
 }
 
@@ -49,6 +50,7 @@ interface UploadState {
 export function UploadDialog({
   projectId,
   environments,
+  defaultEnvironmentId,
   onUploadComplete,
 }: UploadDialogProps) {
   const [open, setOpen] = React.useState(false);
@@ -65,11 +67,18 @@ export function UploadDialog({
     if (!open) {
       const timeout = setTimeout(() => {
         setSelectedFile(null);
+        setSelectedEnvId(defaultEnvironmentId ?? "");
         setUploadState({ status: "idle", progress: 0 });
       }, 300);
       return () => clearTimeout(timeout);
     }
-  }, [open]);
+  }, [open, defaultEnvironmentId]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (!defaultEnvironmentId) return;
+    setSelectedEnvId(defaultEnvironmentId);
+  }, [defaultEnvironmentId, open]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

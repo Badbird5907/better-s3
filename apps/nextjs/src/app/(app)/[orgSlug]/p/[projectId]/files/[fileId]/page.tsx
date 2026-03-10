@@ -66,6 +66,7 @@ interface FileDetailPageProps {
     orgSlug: string;
     projectId: string;
     fileId: string;
+    environment?: string;
   }>;
 }
 
@@ -132,7 +133,7 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
   const trpc = useTRPC();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { fileId, projectId, orgSlug } = use(params);
+  const { fileId, projectId, orgSlug, environment: environmentSlug } = use(params);
   const { organization } = useOrganization();
   const organizationId = organization?.id ?? "";
 
@@ -146,6 +147,19 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
       { enabled: !!organizationId },
     ),
   );
+
+  const environmentsQuery = useQuery(
+    trpc.environment.list.queryOptions(
+      { projectId, organizationId },
+      { enabled: !!organizationId && !!projectId },
+    ),
+  );
+  const selectedEnvironment = (environmentsQuery.data ?? []).find(
+    (env) => env.slug === environmentSlug,
+  );
+  const projectBasePath = selectedEnvironment
+    ? `/${orgSlug}/p/${projectId}/e/${selectedEnvironment.slug}`
+    : `/${orgSlug}/p/${projectId}`;
 
   const fileKeyQuery = useQuery(
     trpc.fileKey.getById.queryOptions(
@@ -176,7 +190,7 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
     trpc.fileKey.delete.mutationOptions({
       onSuccess: () => {
         toast.success("File deleted");
-        router.push(`/${orgSlug}/project/${projectId}/files`);
+        router.push(`${projectBasePath}/files`);
       },
       onError: (error: { message?: string }) => {
         toast.error(error.message ?? "Failed to delete file");
@@ -267,17 +281,16 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
   if (fileKeyQuery.error || !fileKeyQuery.data) {
     notFound();
   }
+  if (environmentSlug && !environmentsQuery.isLoading && !selectedEnvironment) {
+    notFound();
+  }
 
   const fileKey = fileKeyQuery.data;
-
   const status = fileKey.status;
-
   const mimeType = fileKey.file?.mimeType ?? fileKey.claimedMimeType;
   const size = fileKey.file?.size ?? fileKey.claimedSize;
   const hash = fileKey.file?.hash ?? fileKey.claimedHash;
   const FileIcon = getFileIcon(mimeType);
-
-  // isPublic is now stored directly on fileKey (resolved at creation time)
   const effectiveAccess: AccessValue = fileKey.isPublic ? "public" : "private";
   const isPublic = fileKey.isPublic;
 
@@ -286,7 +299,7 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
       <div className="flex flex-1 flex-col gap-4 p-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href={`/${orgSlug}/project/${projectId}/files`}>
+            <Link href={`${projectBasePath}/files`}>
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -331,17 +344,13 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                 </div>
                 <FileStatusBadge status={status} />
               </div>
-
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
                   <HardDrive className="text-muted-foreground h-4 w-4" />
                   <span className="text-muted-foreground">Size</span>
                 </div>
-                <span className="text-sm font-medium">
-                  {formatFileSize(size)}
-                </span>
+                <span className="text-sm font-medium">{formatFileSize(size)}</span>
               </div>
-
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
                   <File className="text-muted-foreground h-4 w-4" />
@@ -349,7 +358,6 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                 </div>
                 <span className="text-sm font-medium">{mimeType ?? "-"}</span>
               </div>
-
               {hash && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm">
@@ -367,7 +375,6 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                   </Button>
                 </div>
               )}
-
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
                   <Tag className="text-muted-foreground h-4 w-4" />
@@ -385,7 +392,6 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                   {fileKey.environment.name}
                 </Badge>
               </div>
-
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="text-muted-foreground h-4 w-4" />
@@ -416,7 +422,6 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                   <Copy className="h-3 w-3" />
                 </Button>
               </div>
-
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <Key className="text-muted-foreground h-4 w-4" />
@@ -426,9 +431,7 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                   variant="outline"
                   size="sm"
                   className="w-full justify-between font-mono text-xs"
-                  onClick={() =>
-                    copyToClipboard(fileKey.accessKey, "Access Key")
-                  }
+                  onClick={() => copyToClipboard(fileKey.accessKey, "Access Key")}
                 >
                   {fileKey.accessKey}
                   <Copy className="h-3 w-3" />
@@ -498,12 +501,8 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
 
         <Card className="border-red-200 dark:border-red-900">
           <CardHeader>
-            <CardTitle className="text-base text-red-600">
-              Danger Zone
-            </CardTitle>
-            <CardDescription>
-              Irreversible actions for this file
-            </CardDescription>
+            <CardTitle className="text-base text-red-600">Danger Zone</CardTitle>
+            <CardDescription>Irreversible actions for this file</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {status === "pending" && (
@@ -531,10 +530,7 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                   Permanently delete this file and all associated data
                 </p>
               </div>
-              <Button
-                variant="destructive"
-                onClick={() => setShowDeleteDialog(true)}
-              >
+              <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete File
               </Button>
@@ -574,10 +570,7 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={showMarkFailedDialog}
-        onOpenChange={setShowMarkFailedDialog}
-      >
+      <Dialog open={showMarkFailedDialog} onOpenChange={setShowMarkFailedDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Mark Upload as Failed</DialogTitle>

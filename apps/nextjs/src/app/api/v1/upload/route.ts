@@ -1,8 +1,6 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { db } from "@silo/db/client";
-import { fileKeys } from "@silo/db/schema";
 import { generateSignedUploadUrl } from "@silo/shared/signing";
 
 import { env } from "@/env";
@@ -23,6 +21,7 @@ const schema = z.object({
   hash: z.string().optional(),
   isPublic: z.boolean().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+
 });
 
 export async function POST(request: Request) {
@@ -65,7 +64,7 @@ export async function POST(request: Request) {
     mimeType,
     hash,
     isPublic,
-    metadata,
+    metadata: _metadata,
   } = result.data;
 
   const project = await validateProjectAccess(authResult, projectId);
@@ -77,28 +76,6 @@ export async function POST(request: Request) {
   try {
     const fileKeyId = nanoid(16);
     const resolvedIsPublic = isPublic ?? project.defaultFileAccess === "public";
-
-    const [newFileKey] = await db
-      .insert(fileKeys)
-      .values({
-        id: fileKeyId,
-        accessKey,
-        fileName,
-        projectId,
-        environmentId,
-        fileId: null,
-        isPublic: resolvedIsPublic,
-        metadata: metadata ?? {},
-        claimedSize: size,
-        claimedMimeType: mimeType ?? null,
-        claimedHash: hash ?? null,
-        status: "pending",
-      })
-      .returning();
-
-    if (!newFileKey) {
-      throw new Error("Failed to create file key record");
-    }
 
     const keyId = apiKey.substring(0, 11);
     const protocol = env.NODE_ENV === "development" ? "http" : "https";

@@ -53,11 +53,8 @@
       "SIGNING_SECRET",
       "UPSTASH_REDIS_REST_URL",
       "UPSTASH_REDIS_REST_TOKEN",
-      "AWS_ACCESS_KEY_ID",
-      "AWS_SECRET_ACCESS_KEY",
-      "AWS_REGION",
-      "AWS_S3_BUCKET",
-      "AWS_S3_ENDPOINT"
+      "WORKER_URL",
+      "WORKER_CALLBACK_SECRET",
     ],
     "globalPassThroughEnv": [
       "NODE_ENV",

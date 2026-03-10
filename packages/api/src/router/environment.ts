@@ -7,9 +7,11 @@ import {  projects } from "@silo/db/schema";
 
 import {
   createEnvironment,
+  createPersonalDevelopmentEnvironment,
   deleteEnvironment,
   getEnvironmentById,
   listEnvironments,
+  scheduleEnvironmentObjectDeletion,
   updateEnvironment,
 } from "../service/environment";
 import { organizationProcedure } from "../trpc";
@@ -69,7 +71,12 @@ export const environmentRouter = {
     .input(z.object({ projectId: z.string() }))
     .query(async ({ ctx, input }) => {
       await validateProjectAccess(ctx.db, input.projectId, ctx.organizationId);
-      return listEnvironments(ctx.db, input.projectId);
+      const environments = await listEnvironments(ctx.db, input.projectId);
+      return environments.map((environment) => ({
+        ...environment,
+        isPersonalDev:
+          environment.type === "development" && !!environment.ownerUserId,
+      }));
     }),
 
   getById: organizationProcedure
@@ -84,6 +91,8 @@ export const environmentRouter = {
         projectId: z.string(),
         name: z.string().min(1, "Name is required").max(100),
         type: z.enum(["development", "staging", "production"]),
+        ownerUserId: z.string().optional(),
+        slug: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -93,6 +102,25 @@ export const environmentRouter = {
         projectId: input.projectId,
         name: input.name,
         type: input.type,
+        ownerUserId: input.ownerUserId,
+        slug: input.slug,
+      });
+    }),
+
+  createPersonal: organizationProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+        preferredName: z.string().min(1).max(100).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await validateProjectAccess(ctx.db, input.projectId, ctx.organizationId);
+      return createPersonalDevelopmentEnvironment(ctx.db, {
+        projectId: input.projectId,
+        userId: ctx.session.user.id,
+        preferredName: input.preferredName,
+        userName: ctx.session.user.name,
       });
     }),
 
@@ -117,7 +145,23 @@ export const environmentRouter = {
   delete: organizationProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await validateEnvironmentAccess(ctx.db, input.id, ctx.organizationId);
+      const environment = await validateEnvironmentAccess(
+        ctx.db,
+        input.id,
+        ctx.organizationId,
+      );
+      if (!environment.projectId) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Environment is missing a project reference",
+        });
+      }
+
+      await scheduleEnvironmentObjectDeletion({
+        projectId: environment.projectId,
+        environmentId: environment.id,
+      });
+
       return deleteEnvironment(ctx.db, input.id);
     }),
 } satisfies TRPCRouterRecord;

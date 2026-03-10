@@ -1,7 +1,12 @@
+import type { DeletePrefixQueueMessage } from "../services/r2/delete-prefix";
+
 export interface Bindings {
   R2_BUCKET: R2Bucket;
   TUS_METADATA: KVNamespace;
   TUS_EXPIRATION: KVNamespace;
+  DELETE_PREFIX_QUEUE: {
+    send(message: DeletePrefixQueueMessage): Promise<void>;
+  };
 
   WORKER_DOMAIN: string;
   NEXTJS_CALLBACK_URL: string;

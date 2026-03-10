@@ -210,6 +210,7 @@ export function EnvironmentsList({
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Scope</TableHead>
                   <TableHead>Slug</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
@@ -222,6 +223,11 @@ export function EnvironmentsList({
                     <TableCell>
                       <Badge variant={getTypeBadgeVariant(env.type)}>
                         {env.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={env.ownerUserId ? "secondary" : "outline"}>
+                        {env.ownerUserId ? "Personal" : "Shared"}
                       </Badge>
                     </TableCell>
                     <TableCell>

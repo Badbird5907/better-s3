@@ -1,8 +1,43 @@
 import type { db as dbClient } from "@silo/db/client";
 import { and, eq } from "@silo/db";
 import { projectEnvironments } from "@silo/db/schema";
+import { env } from "../env";
 
 type Db = typeof dbClient;
+
+function toSlug(input: string) {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+async function getUniqueSlug(
+  db: Db,
+  projectId: string,
+  initialSlug: string,
+  excludeEnvironmentId?: string,
+) {
+  const existingEnvs = await db.query.projectEnvironments.findMany({
+    where: eq(projectEnvironments.projectId, projectId),
+    columns: { slug: true, id: true },
+  });
+
+  const existingSlugs = new Set(
+    existingEnvs
+      .filter((env) => (excludeEnvironmentId ? env.id !== excludeEnvironmentId : true))
+      .map((env) => env.slug),
+  );
+
+  let slug = initialSlug;
+  let counter = 1;
+  while (existingSlugs.has(slug)) {
+    slug = `${initialSlug}-${counter}`;
+    counter++;
+  }
+
+  return slug;
+}
 
 export async function listEnvironments(db: Db, projectId: string) {
   return db.query.projectEnvironments.findMany({
@@ -23,27 +58,12 @@ export async function createEnvironment(
     projectId: string;
     name: string;
     type: "development" | "staging" | "production";
+    ownerUserId?: string | null;
+    slug?: string;
   },
 ) {
-  const baseSlug = input.name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  // Check for slug conflicts within this project
-  const existingEnvs = await db.query.projectEnvironments.findMany({
-    where: eq(projectEnvironments.projectId, input.projectId),
-    columns: { slug: true },
-  });
-
-  const existingSlugs = new Set(existingEnvs.map((e) => e.slug));
-  let slug = baseSlug;
-  let counter = 1;
-
-  while (existingSlugs.has(slug)) {
-    slug = `${baseSlug}-${counter}`;
-    counter++;
-  }
+  const slugBase = toSlug(input.slug ?? input.name);
+  const slug = await getUniqueSlug(db, input.projectId, slugBase);
 
   const [newEnv] = await db
     .insert(projectEnvironments)
@@ -52,10 +72,41 @@ export async function createEnvironment(
       name: input.name,
       slug,
       type: input.type,
+      ownerUserId: input.ownerUserId ?? null,
     })
     .returning();
 
   return newEnv;
+}
+
+export async function createPersonalDevelopmentEnvironment(
+  db: Db,
+  input: {
+    projectId: string;
+    userId: string;
+    preferredName?: string;
+    userName?: string | null;
+  },
+) {
+  const existing = await db.query.projectEnvironments.findFirst({
+    where: and(
+      eq(projectEnvironments.projectId, input.projectId),
+      eq(projectEnvironments.ownerUserId, input.userId),
+      eq(projectEnvironments.type, "development"),
+    ),
+  });
+
+  if (existing) return existing;
+
+  const resolvedName = input.preferredName?.trim() ?? input.userName?.trim() ?? "My Dev Env";
+
+  return createEnvironment(db, {
+    projectId: input.projectId,
+    type: "development",
+    ownerUserId: input.userId,
+    name: resolvedName,
+    slug: resolvedName,
+  });
 }
 
 export async function updateEnvironment(
@@ -71,37 +122,17 @@ export async function updateEnvironment(
   if (input.name !== undefined) {
     updates.name = input.name;
 
-    // Re-generate slug from the new name
     const env = await db.query.projectEnvironments.findFirst({
       where: eq(projectEnvironments.id, input.id),
     });
 
     if (env?.projectId) {
-      const baseSlug = input.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
-
-      const existingEnvs = await db.query.projectEnvironments.findMany({
-        where: and(
-          eq(projectEnvironments.projectId, env.projectId),
-          // Exclude current environment from slug conflict check
-        ),
-        columns: { slug: true, id: true },
-      });
-
-      const existingSlugs = new Set(
-        existingEnvs.filter((e) => e.id !== input.id).map((e) => e.slug),
+      updates.slug = await getUniqueSlug(
+        db,
+        env.projectId,
+        toSlug(input.name),
+        input.id,
       );
-      let slug = baseSlug;
-      let counter = 1;
-
-      while (existingSlugs.has(slug)) {
-        slug = `${baseSlug}-${counter}`;
-        counter++;
-      }
-
-      updates.slug = slug;
     }
   }
 
@@ -129,4 +160,26 @@ export async function deleteEnvironment(db: Db, environmentId: string) {
     .returning();
 
   return deleted;
+}
+
+export async function scheduleEnvironmentObjectDeletion(params: {
+  projectId: string;
+  environmentId: string;
+}) {
+  const prefix = `${params.projectId}/${params.environmentId}/`;
+  const response = await fetch(`${env.WORKER_URL}/internal/delete-prefix`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${env.CALLBACK_SECRET}`,
+    },
+    body: JSON.stringify({ prefix }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Failed to schedule environment object deletion: ${response.status} ${body}`,
+    );
+  }
 }

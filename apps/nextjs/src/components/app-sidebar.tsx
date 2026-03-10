@@ -2,7 +2,8 @@
 
 import type { NavItem } from "@/components/nav-main";
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
   Files,
@@ -18,6 +19,14 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@silo/ui/components/sidebar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@silo/ui/components/select";
+import { Button } from "@silo/ui/components/button";
 
 import { authClient } from "@/auth/client";
 import { NavMain } from "@/components/nav-main";
@@ -25,6 +34,7 @@ import { NavUser } from "@/components/nav-user";
 import { OrganizationSwitcher } from "@/components/organization-switcher";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { useOrganization } from "@/hooks/use-organization";
+import { useTRPC } from "@/trpc/react";
 
 function getMainNavItems(orgSlug: string): NavItem[] {
   return [
@@ -41,26 +51,26 @@ function getMainNavItems(orgSlug: string): NavItem[] {
   ];
 }
 
-function getProjectNavItems(orgSlug: string, projectId: string): NavItem[] {
+function getProjectNavItems(projectBasePath: string): NavItem[] {
   return [
     {
       title: "Dashboard",
-      url: `/${orgSlug}/project/${projectId}`,
+      url: projectBasePath,
       icon: LayoutDashboard,
     },
     {
       title: "Files",
-      url: `/${orgSlug}/project/${projectId}/files`,
+      url: `${projectBasePath}/files`,
       icon: Files,
     },
     {
       title: "Analytics",
-      url: `/${orgSlug}/project/${projectId}/analytics`,
+      url: `${projectBasePath}/analytics`,
       icon: BarChart3,
     },
     {
       title: "Settings",
-      url: `/${orgSlug}/project/${projectId}/settings`,
+      url: `${projectBasePath}/settings`,
       icon: Settings,
     },
   ];
@@ -68,20 +78,36 @@ function getProjectNavItems(orgSlug: string, projectId: string): NavItem[] {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const router = useRouter();
+  const trpc = useTRPC();
 
   const { data: session } = authClient.useSession();
-  const { orgSlug } = useOrganization();
+  const { orgSlug, organization } = useOrganization();
+  const organizationId = organization?.id ?? "";
 
-  const projectMatch = /^\/[^/]+\/project\/([^/]+)/.exec(pathname);
+  const projectMatch = /^\/[^/]+\/p\/([^/]+)(?:\/e\/([^/]+))?/.exec(pathname);
   const currentProjectId = projectMatch?.[1];
+  const currentEnvironmentSlug = projectMatch?.[2];
   const isInProject = !!currentProjectId;
+  const projectBasePath = currentProjectId
+    ? currentEnvironmentSlug
+      ? `/${orgSlug}/p/${currentProjectId}/e/${currentEnvironmentSlug}`
+      : `/${orgSlug}/p/${currentProjectId}`
+    : "";
+
+  const environmentsQuery = useQuery(
+    trpc.environment.list.queryOptions(
+      { organizationId, projectId: currentProjectId ?? "" },
+      { enabled: !!organizationId && !!currentProjectId },
+    ),
+  );
 
   const navItems = React.useMemo(
     () =>
       isInProject
-        ? getProjectNavItems(orgSlug ?? "", currentProjectId)
+        ? getProjectNavItems(projectBasePath)
         : getMainNavItems(orgSlug ?? ""),
-    [isInProject, orgSlug, currentProjectId],
+    [isInProject, orgSlug, projectBasePath],
   );
 
   const navLabel = isInProject ? "Project" : "Navigation";
@@ -104,10 +130,53 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       }
     : null;
 
+  const handleEnvironmentChange = (environmentSlug: string) => {
+    if (!currentProjectId || !orgSlug) return;
+    const nextBase =
+      environmentSlug === "__none__"
+        ? `/${orgSlug}/p/${currentProjectId}`
+        : `/${orgSlug}/p/${currentProjectId}/e/${environmentSlug}`;
+    const nextSuffix = pathname.replace(/^\/[^/]+\/p\/[^/]+(?:\/e\/[^/]+)?/, "");
+    router.push(`${nextBase}${nextSuffix}`);
+  };
+
+  const handleCreateMyDevEnvironment = () => {
+    if (!currentProjectId || !orgSlug) return;
+    router.push(`/${orgSlug}/p/${currentProjectId}/settings?createDevEnv=1`);
+  };
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         {isInProject ? <ProjectSwitcher /> : <OrganizationSwitcher />}
+        {isInProject && (
+          <div className="px-2 pt-2 space-y-2">
+            <Select
+              value={currentEnvironmentSlug ?? "__none__"}
+              onValueChange={handleEnvironmentChange}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select environment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">All environments</SelectItem>
+                {(environmentsQuery.data ?? []).map((environment) => (
+                  <SelectItem key={environment.id} value={environment.slug}>
+                    {environment.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              className="w-full"
+              size="sm"
+              onClick={handleCreateMyDevEnvironment}
+            >
+              Create my dev environment
+            </Button>
+          </div>
+        )}
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} label={navLabel} />

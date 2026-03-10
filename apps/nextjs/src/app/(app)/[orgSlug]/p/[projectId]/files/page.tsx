@@ -82,6 +82,7 @@ interface FilesPageProps {
   params: Promise<{
     orgSlug: string;
     projectId: string;
+    environment?: string;
   }>;
 }
 
@@ -187,16 +188,14 @@ export default function FilesPage({ params }: FilesPageProps) {
   const trpc = useTRPC();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { projectId, orgSlug } = use(params);
+  const { projectId, orgSlug, environment: environmentSlug } = use(params);
   const { organization } = useOrganization();
   const organizationId = organization?.id ?? "";
 
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
   const [search, setSearch] = React.useState("");
-  const [mimeTypeFilter, setMimeTypeFilter] = React.useState<
-    string | undefined
-  >();
+  const [mimeTypeFilter, setMimeTypeFilter] = React.useState<string | undefined>();
   const [environmentFilter, setEnvironmentFilter] = React.useState<
     string | undefined
   >();
@@ -234,6 +233,32 @@ export default function FilesPage({ params }: FilesPageProps) {
     ),
   );
 
+  const environmentsQuery = useQuery(
+    trpc.environment.list.queryOptions(
+      { projectId, organizationId },
+      { enabled: !!organizationId && !!projectId },
+    ),
+  );
+
+  const selectedEnvironment = (environmentsQuery.data ?? []).find(
+    (env) => env.slug === environmentSlug,
+  );
+  const selectedEnvironmentId = selectedEnvironment?.id;
+  const projectBasePath = selectedEnvironment
+    ? `/${orgSlug}/p/${projectId}/e/${selectedEnvironment.slug}`
+    : `/${orgSlug}/p/${projectId}`;
+
+  React.useEffect(() => {
+    if (selectedEnvironmentId) {
+      setEnvironmentFilter(selectedEnvironmentId);
+      return;
+    }
+    if (!environmentSlug) {
+      return;
+    }
+    setEnvironmentFilter(undefined);
+  }, [selectedEnvironmentId, environmentSlug]);
+
   const fileKeysQuery = useQuery(
     trpc.fileKey.list.queryOptions(
       {
@@ -254,14 +279,14 @@ export default function FilesPage({ params }: FilesPageProps) {
 
   const filterOptionsQuery = useQuery(
     trpc.fileKey.getFilterOptions.queryOptions(
-      { organizationId, projectId },
+      { organizationId, projectId, environmentId: environmentFilter },
       { enabled: !!organizationId },
     ),
   );
 
   const statsQuery = useQuery(
     trpc.fileKey.getStats.queryOptions(
-      { organizationId, projectId },
+      { organizationId, projectId, environmentId: environmentFilter },
       { enabled: !!organizationId },
     ),
   );
@@ -356,6 +381,9 @@ export default function FilesPage({ params }: FilesPageProps) {
   if (projectQuery.error || !projectQuery.data) {
     notFound();
   }
+  if (environmentSlug && !environmentsQuery.isLoading && !selectedEnvironment) {
+    notFound();
+  }
 
   const fileKeys = fileKeysQuery.data?.fileKeys ?? [];
   const pagination = fileKeysQuery.data?.pagination;
@@ -391,7 +419,6 @@ export default function FilesPage({ params }: FilesPageProps) {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Completed</CardTitle>
@@ -407,7 +434,6 @@ export default function FilesPage({ params }: FilesPageProps) {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
@@ -423,7 +449,6 @@ export default function FilesPage({ params }: FilesPageProps) {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Failed</CardTitle>
@@ -439,7 +464,6 @@ export default function FilesPage({ params }: FilesPageProps) {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Storage</CardTitle>
@@ -466,12 +490,9 @@ export default function FilesPage({ params }: FilesPageProps) {
                   onDebouncedChange={handleSearchChange}
                   placeholder="Search by filename..."
                 />
-
                 <Select
                   value={statusFilter}
-                  onValueChange={(v) =>
-                    setStatusFilter(v as typeof statusFilter)
-                  }
+                  onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
                 >
                   <SelectTrigger className="w-[130px]">
                     <SelectValue placeholder="Status" />
@@ -483,7 +504,6 @@ export default function FilesPage({ params }: FilesPageProps) {
                     <SelectItem value="failed">Failed</SelectItem>
                   </SelectContent>
                 </Select>
-
                 <Select
                   value={environmentFilter ?? "all"}
                   onValueChange={(v) =>
@@ -502,7 +522,6 @@ export default function FilesPage({ params }: FilesPageProps) {
                     ))}
                   </SelectContent>
                 </Select>
-
                 <Select
                   value={mimeTypeFilter ?? "all"}
                   onValueChange={(v) =>
@@ -521,7 +540,6 @@ export default function FilesPage({ params }: FilesPageProps) {
                     ))}
                   </SelectContent>
                 </Select>
-
                 <Select
                   value={`${sortBy}-${sortOrder}`}
                   onValueChange={(v) => {
@@ -545,16 +563,15 @@ export default function FilesPage({ params }: FilesPageProps) {
                     <SelectItem value="size-asc">Smallest First</SelectItem>
                   </SelectContent>
                 </Select>
-
                 {hasActiveFilters && (
                   <Button variant="ghost" size="sm" onClick={clearFilters}>
                     Clear filters
                   </Button>
                 )}
-
                 <div className="ml-auto">
                   <UploadDialog
                     projectId={projectId}
+                    defaultEnvironmentId={selectedEnvironmentId}
                     environments={
                       filterOptions?.environments.map((env) => ({
                         id: env.id,
@@ -612,9 +629,7 @@ export default function FilesPage({ params }: FilesPageProps) {
                           key={fk.id}
                           className="cursor-pointer"
                           onClick={() =>
-                            router.push(
-                              `/${orgSlug}/project/${projectId}/files/${fk.id}`,
-                            )
+                            router.push(`${projectBasePath}/files/${fk.id}`)
                           }
                         >
                           <TableCell>
@@ -623,9 +638,7 @@ export default function FilesPage({ params }: FilesPageProps) {
                                 <FileIcon className="text-muted-foreground h-5 w-5" />
                               </div>
                               <div className="flex min-w-0 flex-col">
-                                <span className="truncate font-medium">
-                                  {fk.fileName}
-                                </span>
+                                <span className="truncate font-medium">{fk.fileName}</span>
                                 {fk.hash && (
                                   <span className="text-muted-foreground truncate font-mono text-xs">
                                     {fk.hash.slice(0, 16)}...
@@ -695,10 +708,7 @@ export default function FilesPage({ params }: FilesPageProps) {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() =>
-                                    copyToClipboard(
-                                      fk.accessKey,
-                                      "Access key copied",
-                                    )
+                                    copyToClipboard(fk.accessKey, "Access key copied")
                                   }
                                 >
                                   <Copy className="mr-2 h-4 w-4" />
@@ -753,12 +763,9 @@ export default function FilesPage({ params }: FilesPageProps) {
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="text-muted-foreground text-sm">
-                      {pagination.page} / {pagination.totalPages} (
-                      {pagination.totalCount})
+                      {pagination.page} / {pagination.totalPages} ({pagination.totalCount})
                     </div>
-
                     <div className="flex items-center gap-1">
                       <Button
                         variant="outline"

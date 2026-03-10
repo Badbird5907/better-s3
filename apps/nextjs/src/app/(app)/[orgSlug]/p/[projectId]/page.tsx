@@ -37,6 +37,7 @@ interface ProjectPageProps {
   params: Promise<{
     orgSlug: string;
     projectId: string;
+    environment?: string;
   }>;
 }
 
@@ -111,7 +112,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const { organization } = useOrganization();
   const organizationId = organization?.id ?? "";
 
-  const { projectId, orgSlug } = use(params);
+  const { projectId, orgSlug, environment: environmentSlug } = use(params);
 
   const projectQuery = useQuery(
     trpc.project.getById.queryOptions(
@@ -119,13 +120,6 @@ export default function ProjectPage({ params }: ProjectPageProps) {
       { enabled: !!organizationId },
     ),
   );
-  const analyticsQuery = useQuery(
-    trpc.analytics.getProjectStats.queryOptions(
-      { projectId, organizationId },
-      { enabled: !!organizationId && !!projectId },
-    ),
-  );
-
   const environmentsQuery = useQuery(
     trpc.environment.list.queryOptions(
       { projectId, organizationId },
@@ -133,9 +127,26 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     ),
   );
 
+  const selectedEnvironment = (environmentsQuery.data ?? []).find(
+    (env) => env.slug === environmentSlug,
+  );
+  const selectedEnvironmentId = selectedEnvironment?.id;
+
+  const analyticsQuery = useQuery(
+    trpc.analytics.getProjectStats.queryOptions(
+      { projectId, organizationId, environmentId: selectedEnvironmentId },
+      { enabled: !!organizationId && !!projectId },
+    ),
+  );
+
   const recentEventsQuery = useQuery(
     trpc.analytics.getRecentEvents.queryOptions(
-      { projectId, organizationId, limit: 10 },
+      {
+        projectId,
+        organizationId,
+        environmentId: selectedEnvironmentId,
+        limit: 10,
+      },
       { enabled: !!organizationId && !!projectId },
     ),
   );
@@ -161,15 +172,20 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   if (projectQuery.error || !projectQuery.data) {
     notFound();
   }
+  if (environmentSlug && !environmentsQuery.isLoading && !selectedEnvironment) {
+    notFound();
+  }
 
   const stats = analyticsQuery.data;
   const environments = environmentsQuery.data ?? [];
   const recentEvents = recentEventsQuery.data ?? [];
+  const projectBasePath = selectedEnvironment
+    ? `/${orgSlug}/p/${projectId}/e/${selectedEnvironment.slug}`
+    : `/${orgSlug}/p/${projectId}`;
 
   return (
     <>
       <div className="flex flex-1 flex-col gap-4 p-4">
-        {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -261,9 +277,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </Card>
         </div>
 
-        {/* Second Row - Quick Actions and Activity */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {/* Quick Actions */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Quick Actions</CardTitle>
@@ -274,19 +288,19 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             <CardContent>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" asChild>
-                  <Link href={`/${orgSlug}/project/${projectId}/files`}>
+                  <Link href={`${projectBasePath}/files`}>
                     <FileIcon className="mr-2 h-4 w-4" />
                     Browse Files
                   </Link>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link href={`/${orgSlug}/project/${projectId}/analytics`}>
+                  <Link href={`${projectBasePath}/analytics`}>
                     <TrendingUpIcon className="mr-2 h-4 w-4" />
                     View Analytics
                   </Link>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link href={`/${orgSlug}/project/${projectId}/settings`}>
+                  <Link href={`${projectBasePath}/settings`}>
                     <FolderIcon className="mr-2 h-4 w-4" />
                     Manage Environments
                   </Link>
@@ -295,7 +309,6 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </CardContent>
           </Card>
 
-          {/* Recent Activity Card */}
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -303,7 +316,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                 <CardDescription>Latest uploads and downloads</CardDescription>
               </div>
               <Button variant="ghost" size="sm" asChild>
-                <Link href={`/${orgSlug}/project/${projectId}/analytics`}>
+                <Link href={`${projectBasePath}/analytics`}>
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -382,7 +395,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     return isClickable ? (
                       <Link
                         key={event.id}
-                        href={`/${orgSlug}/project/${projectId}/files/${fileKeyId}`}
+                        href={`${projectBasePath}/files/${fileKeyId}`}
                       >
                         {content}
                       </Link>
@@ -396,7 +409,6 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </Card>
         </div>
 
-        {/* Environments Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -407,7 +419,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <Link href={`/${orgSlug}/project/${projectId}/settings`}>
+              <Link href={`${projectBasePath}/settings`}>
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -426,7 +438,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                   No environments yet
                 </p>
                 <Button variant="link" size="sm" asChild className="mt-1">
-                  <Link href={`/${orgSlug}/project/${projectId}/settings`}>
+                  <Link href={`${projectBasePath}/settings`}>
                     Create one
                   </Link>
                 </Button>

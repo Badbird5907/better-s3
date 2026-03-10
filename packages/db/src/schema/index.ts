@@ -61,6 +61,9 @@ export const projectEnvironments = pgTable("project_environments", {
   name: text("name").notNull(),
   slug: text("slug").notNull(), // unique across project, but not globally
   type: projectEnvironmentTypes("type").notNull(),
+  ownerUserId: text("owner_user_id").references(() => auth.users.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -151,6 +154,10 @@ export const projectEnvironmentsRelations = relations(
     project: one(projects, {
       fields: [projectEnvironments.projectId],
       references: [projects.id],
+    }),
+    owner: one(auth.users, {
+      fields: [projectEnvironments.ownerUserId],
+      references: [auth.users.id],
     }),
     files: many(files),
     fileKeys: many(fileKeys),

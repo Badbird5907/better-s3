@@ -81,7 +81,7 @@ export function ProjectSwitcher() {
   }
 
   const handleProjectChange = (project: { id: string }) => {
-    router.push(`/${orgSlug}/project/${project.id}`);
+    router.push(`/${orgSlug}/p/${project.id}`);
   };
 
   return (
@@ -139,7 +139,7 @@ export function ProjectSwitcher() {
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild className="gap-2 p-2">
-                <Link href={`/${orgSlug}/project/${projectId}/settings`}>
+                <Link href={`/${orgSlug}/p/${projectId}/settings`}>
                   <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                     <Settings className="size-3.5" />
                   </div>

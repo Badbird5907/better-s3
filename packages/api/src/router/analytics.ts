@@ -3,7 +3,13 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gte, lte, sql, sum } from "drizzle-orm";
 import { z } from "zod/v4";
 
-import { files, projects, usageDaily, usageEvents } from "@silo/db/schema";
+import {
+  files,
+  projectEnvironments,
+  projects,
+  usageDaily,
+  usageEvents,
+} from "@silo/db/schema";
 
 import { organizationProcedure } from "../trpc";
 
@@ -37,6 +43,7 @@ export const analyticsRouter = {
         projectId: z.string(),
         startDate: z.string().optional(),
         endDate: z.string().optional(),
+        environmentId: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -49,6 +56,22 @@ export const analyticsRouter = {
           code: "FORBIDDEN",
           message: "You don't have access to this project",
         });
+      }
+
+      if (input.environmentId) {
+        const environment = await ctx.db.query.projectEnvironments.findFirst({
+          where: and(
+            eq(projectEnvironments.id, input.environmentId),
+            eq(projectEnvironments.projectId, input.projectId),
+          ),
+        });
+
+        if (!environment) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Environment not found",
+          });
+        }
       }
 
       const now = new Date();
@@ -72,6 +95,9 @@ export const analyticsRouter = {
         .where(
           and(
             eq(usageDaily.projectId, input.projectId),
+            ...(input.environmentId
+              ? [eq(usageDaily.environmentId, input.environmentId)]
+              : []),
             gte(usageDaily.date, startDate),
             lte(usageDaily.date, endDate),
           ),
@@ -91,6 +117,9 @@ export const analyticsRouter = {
         .where(
           and(
             eq(usageDaily.projectId, input.projectId),
+            ...(input.environmentId
+              ? [eq(usageDaily.environmentId, input.environmentId)]
+              : []),
             gte(usageDaily.date, startDate),
             lte(usageDaily.date, endDate),
           ),
@@ -102,7 +131,14 @@ export const analyticsRouter = {
           fileCount: sql<number>`count(*)::int`,
         })
         .from(files)
-        .where(eq(files.projectId, input.projectId));
+        .where(
+          and(
+            eq(files.projectId, input.projectId),
+            ...(input.environmentId
+              ? [eq(files.environmentId, input.environmentId)]
+              : []),
+          ),
+        );
 
       const totalStorage = storageResult[0]?.totalBytes ?? 0;
       const fileCount = storageResult[0]?.fileCount ?? 0;
@@ -250,6 +286,7 @@ export const analyticsRouter = {
     .input(
       z.object({
         projectId: z.string().optional(),
+        environmentId: z.string().optional(),
         limit: z.number().min(1).max(100).default(50),
       }),
     )
@@ -266,10 +303,35 @@ export const analyticsRouter = {
           });
         }
       }
+      if (input.environmentId && !input.projectId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "environmentId requires projectId",
+        });
+      }
+
+      if (input.projectId && input.environmentId) {
+        const environment = await ctx.db.query.projectEnvironments.findFirst({
+          where: and(
+            eq(projectEnvironments.id, input.environmentId),
+            eq(projectEnvironments.projectId, input.projectId),
+          ),
+        });
+
+        if (!environment) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Environment not found",
+          });
+        }
+      }
 
       const conditions = [eq(usageEvents.organizationId, ctx.organizationId)];
       if (input.projectId) {
         conditions.push(eq(usageEvents.projectId, input.projectId));
+      }
+      if (input.environmentId) {
+        conditions.push(eq(usageEvents.environmentId, input.environmentId));
       }
 
       const events = await ctx.db.query.usageEvents.findMany({

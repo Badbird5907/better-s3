@@ -1,31 +1,31 @@
-import type { BetterS3Client } from "@silo/sdk-core";
+import type { SiloClient } from "@silo/sdk-core";
 import type { ReactNode } from "react";
 import { createContext, useContext } from "react";
 
-const BetterS3ClientContext = createContext<BetterS3Client | null>(null);
+const SiloClientContext = createContext<SiloClient | null>(null);
 
-export interface BetterS3ClientProviderProps {
-  client: BetterS3Client;
+export interface SiloClientProviderProps {
+  client: SiloClient;
   children: ReactNode;
 }
 
-export function BetterS3ClientProvider({
+export function SiloClientProvider({
   client,
   children,
-}: BetterS3ClientProviderProps) {
+}: SiloClientProviderProps) {
   return (
-    <BetterS3ClientContext.Provider value={client}>
+    <SiloClientContext.Provider value={client}>
       {children}
-    </BetterS3ClientContext.Provider>
+    </SiloClientContext.Provider>
   );
 }
 
-export function useBetterS3Client(): BetterS3Client {
-  const client = useContext(BetterS3ClientContext);
+export function useSiloClient(): SiloClient {
+  const client = useContext(SiloClientContext);
 
   if (!client) {
     throw new Error(
-      "useBetterS3Client must be used within a BetterS3ClientProvider",
+      "useSiloClient must be used within a SiloClientProvider",
     );
   }
 

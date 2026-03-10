@@ -11,8 +11,11 @@ import {
 } from "./middleware/project";
 import { handleDownload } from "./routes/download";
 import { handleInternalDelete } from "./routes/internal/delete";
+import { handleInternalDeletePrefix } from "./routes/internal/delete-prefix";
 import { handleInternalList } from "./routes/internal/list";
 import { handleInternalMetadata } from "./routes/internal/metadata";
+import { deletePrefixChunk } from "./services/r2/delete-prefix";
+import type { DeletePrefixQueueMessage } from "./services/r2/delete-prefix";
 import { handleTusCreate } from "./routes/tus/create";
 import { handleTusDelete } from "./routes/tus/delete";
 import { handleTusHead } from "./routes/tus/head";
@@ -45,6 +48,12 @@ app.delete(
   handleInternalDelete,
 );
 app.post(
+  "/internal/delete-prefix",
+  requireMainDomain,
+  requireCallbackSecret,
+  handleInternalDeletePrefix,
+);
+app.post(
   "/internal/list",
   requireMainDomain,
   requireCallbackSecret,
@@ -75,4 +84,56 @@ app.notFound((c) => {
   return c.json({ error: "Not found" }, 404);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  async queue(
+    batch: MessageBatch<DeletePrefixQueueMessage>,
+    env: Bindings,
+  ): Promise<void> {
+    for (const message of batch.messages) {
+      const { prefix, cursor, requestId } = message.body;
+
+      if (!prefix) {
+        console.error("Invalid delete-prefix queue payload: missing prefix", {
+          requestId,
+        });
+        message.ack();
+        continue;
+      }
+
+      try {
+        const result = await deletePrefixChunk({
+          prefix,
+          cursor,
+          env,
+        });
+
+        console.info("Processed delete-prefix chunk", {
+          requestId,
+          prefix,
+          processed: result.processed,
+          deleted: result.deleted,
+          truncated: result.truncated,
+          cursor: result.cursor,
+        });
+
+        if (result.truncated && result.cursor) {
+          await env.DELETE_PREFIX_QUEUE.send({
+            ...message.body,
+            cursor: result.cursor,
+          });
+        }
+
+        message.ack();
+      } catch (error) {
+        console.error("Delete-prefix queue message failed", {
+          requestId,
+          prefix,
+          cursor,
+          error,
+        });
+        message.retry();
+      }
+    }
+  },
+};

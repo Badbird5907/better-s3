@@ -20,6 +20,17 @@ id = "tus-metadata-placeholder"  # Replace with real ID for production
 binding = "TUS_EXPIRATION"
 id = "tus-expiration-placeholder"  # Replace with real ID for production
 
+[[queues.producers]]
+binding = "DELETE_PREFIX_QUEUE"
+queue = "silo-delete-prefix"
+
+[[queues.consumers]]
+queue = "silo-delete-prefix"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "silo-delete-prefix-dlq"
+
 [vars]
 WORKER_DOMAIN = "files.evanyu.dev"
 NEXTJS_CALLBACK_URL = "http://localhost:3000"

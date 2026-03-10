@@ -5,8 +5,6 @@ import { projectEnvironments, projects } from "@silo/db/schema";
 type Db = typeof dbClient;
 
 const DEFAULT_ENVIRONMENTS = [
-  { name: "Development", slug: "development", type: "development" as const },
-  { name: "Staging", slug: "staging", type: "staging" as const },
   { name: "Production", slug: "production", type: "production" as const },
 ];
 

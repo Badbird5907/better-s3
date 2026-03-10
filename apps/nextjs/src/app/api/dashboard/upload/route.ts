@@ -4,7 +4,13 @@ import { z } from "zod";
 
 import { and, eq, gt, isNull, or } from "@silo/db";
 import { db } from "@silo/db/client";
-import { apiKeys, fileKeys, members, projects } from "@silo/db/schema";
+import {
+  apiKeys,
+  fileKeys,
+  members,
+  projectEnvironments,
+  projects,
+} from "@silo/db/schema";
 import { generateSignedUploadUrlFromHash } from "@silo/shared/signing";
 
 import { auth } from "@/auth/server";
@@ -88,6 +94,22 @@ export async function POST(request: Request) {
         message: "You do not have access to this project.",
       }),
       { status: 403, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const environment = await db.query.projectEnvironments.findFirst({
+    where: and(
+      eq(projectEnvironments.id, environmentId),
+      eq(projectEnvironments.projectId, projectId),
+    ),
+  });
+  if (!environment) {
+    return new Response(
+      JSON.stringify({
+        error: "Not Found",
+        message: "Environment not found.",
+      }),
+      { status: 404, headers: { "Content-Type": "application/json" } },
     );
   }
 

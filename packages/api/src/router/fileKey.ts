@@ -180,7 +180,12 @@ export const fileKeyRouter = {
     }),
 
   getStats: organizationProcedure
-    .input(z.object({ projectId: z.string() }))
+    .input(
+      z.object({
+        projectId: z.string(),
+        environmentId: z.string().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const project = await ctx.db.query.projects.findFirst({
         where: eq(projects.id, input.projectId),
@@ -193,7 +198,28 @@ export const fileKeyRouter = {
         });
       }
 
-      const baseWhere = eq(fileKeys.projectId, input.projectId);
+      if (input.environmentId) {
+        const environment = await ctx.db.query.projectEnvironments.findFirst({
+          where: and(
+            eq(projectEnvironments.id, input.environmentId),
+            eq(projectEnvironments.projectId, input.projectId),
+          ),
+        });
+
+        if (!environment) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Environment not found",
+          });
+        }
+      }
+
+      const baseWhere = and(
+        eq(fileKeys.projectId, input.projectId),
+        ...(input.environmentId
+          ? [eq(fileKeys.environmentId, input.environmentId)]
+          : []),
+      );
 
       const [totalResult] = await ctx.db
         .select({ count: count() })
@@ -235,7 +261,12 @@ export const fileKeyRouter = {
     }),
 
   getFilterOptions: organizationProcedure
-    .input(z.object({ projectId: z.string() }))
+    .input(
+      z.object({
+        projectId: z.string(),
+        environmentId: z.string().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const project = await ctx.db.query.projects.findFirst({
         where: eq(projects.id, input.projectId),
@@ -248,6 +279,22 @@ export const fileKeyRouter = {
         });
       }
 
+      if (input.environmentId) {
+        const environment = await ctx.db.query.projectEnvironments.findFirst({
+          where: and(
+            eq(projectEnvironments.id, input.environmentId),
+            eq(projectEnvironments.projectId, input.projectId),
+          ),
+        });
+
+        if (!environment) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Environment not found",
+          });
+        }
+      }
+
       const environments = await ctx.db.query.projectEnvironments.findMany({
         where: eq(projectEnvironments.projectId, input.projectId),
         columns: { id: true, name: true, type: true },
@@ -257,7 +304,14 @@ export const fileKeyRouter = {
         .select({ mimeType: files.mimeType })
         .from(fileKeys)
         .innerJoin(files, eq(fileKeys.fileId, files.id))
-        .where(eq(fileKeys.projectId, input.projectId));
+        .where(
+          and(
+            eq(fileKeys.projectId, input.projectId),
+            ...(input.environmentId
+              ? [eq(fileKeys.environmentId, input.environmentId)]
+              : []),
+          ),
+        );
 
       const pendingFileKeys = await ctx.db
         .select({ mimeType: fileKeys.claimedMimeType })
@@ -265,6 +319,9 @@ export const fileKeyRouter = {
         .where(
           and(
             eq(fileKeys.projectId, input.projectId),
+            ...(input.environmentId
+              ? [eq(fileKeys.environmentId, input.environmentId)]
+              : []),
             eq(fileKeys.status, "pending"),
             isNotNull(fileKeys.claimedMimeType),
           ),

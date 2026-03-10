@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { deleteEnvironment, updateEnvironment } from "@silo/api/services";
+import {
+  deleteEnvironment,
+  scheduleEnvironmentObjectDeletion,
+  updateEnvironment,
+} from "@silo/api/services";
 import { db } from "@silo/db/client";
 
 import {
@@ -102,6 +106,11 @@ export async function DELETE(
   if (existing instanceof Response) return existing;
 
   try {
+    await scheduleEnvironmentObjectDeletion({
+      projectId,
+      environmentId,
+    });
+
     const deleted = await deleteEnvironment(db, environmentId);
     return jsonResponse(deleted);
   } catch (error) {

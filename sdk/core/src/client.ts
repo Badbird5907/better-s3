@@ -1,18 +1,21 @@
-export interface BetterS3ClientConfig {
+import { generateSignedUploadUrl, SignedUploadUrlParams } from "@silo/shared/signing";
+
+export interface SiloClientConfig {
   apiBaseUrl: string;
   apiKey?: string;
 }
 
-export interface BetterS3Client {
+export interface SiloClient {
   getApiBaseUrl(): string;
   getApiKey(): string | undefined;
 }
 
-export function createBetterS3Client(config: BetterS3ClientConfig): BetterS3Client {
+export function createSiloClient(config: SiloClientConfig): SiloClient {
   const apiBaseUrl = config.apiBaseUrl.replace(/\/+$/, "");
 
   return {
     getApiBaseUrl: () => apiBaseUrl,
     getApiKey: () => config.apiKey,
+
   };
 }

@@ -42,6 +42,7 @@ interface AnalyticsPageProps {
   params: Promise<{
     orgSlug: string;
     projectId: string;
+    environment?: string;
   }>;
 }
 
@@ -90,7 +91,7 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
     getDefaultAnalyticsRange(),
   );
 
-  const { projectId } = use(params);
+  const { projectId, environment: environmentSlug } = use(params);
 
   const projectQuery = useQuery(
     trpc.project.getById.queryOptions(
@@ -99,11 +100,24 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
     ),
   );
 
+  const environmentsQuery = useQuery(
+    trpc.environment.list.queryOptions(
+      { projectId, organizationId },
+      { enabled: !!organizationId && !!projectId },
+    ),
+  );
+
+  const selectedEnvironment = (environmentsQuery.data ?? []).find(
+    (env) => env.slug === environmentSlug,
+  );
+  const selectedEnvironmentId = selectedEnvironment?.id;
+
   const analyticsQuery = useQuery(
     trpc.analytics.getProjectStats.queryOptions(
       {
         projectId,
         organizationId,
+        environmentId: selectedEnvironmentId,
         startDate: formatDateParam(dateRange.from),
         endDate: formatDateParam(dateRange.to),
       },
@@ -131,6 +145,9 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
   }
 
   if (projectQuery.error || !projectQuery.data) {
+    notFound();
+  }
+  if (environmentSlug && !environmentsQuery.isLoading && !selectedEnvironment) {
     notFound();
   }
 
@@ -200,7 +217,7 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
             title="Data Transferred"
             value={formatBytes(
               (stats?.totals.bytesUploaded ?? 0) +
-              (stats?.totals.bytesDownloaded ?? 0),
+                (stats?.totals.bytesDownloaded ?? 0),
             )}
             description="Upload + Download"
             icon={FileIcon}
