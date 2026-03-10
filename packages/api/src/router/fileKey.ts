@@ -14,7 +14,7 @@ import {
 } from "drizzle-orm";
 import { z } from "zod/v4";
 
-import { fileKeys, files, projectEnvironments, projects } from "@app/db/schema";
+import { fileKeys, files, projectEnvironments, projects } from "@silo/db/schema";
 
 import { markUploadAsFailed, UploadFailureError } from "../service/fileKey";
 import { organizationProcedure } from "../trpc";

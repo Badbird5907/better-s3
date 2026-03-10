@@ -498,26 +498,6 @@ export async function verifySignedDownloadUrl(
 }
 
 /**
- * Legacy verification function - use verifySignedUploadUrl or verifySignedDownloadUrl instead
- * @deprecated
- */
-export async function verifySignedUrl(
-  url: string,
-  signingSecret: string,
-): Promise<ParsedSignedUrl> {
-  const urlObj = new URL(url);
-  const pathParts = urlObj.pathname.split("/").filter(Boolean);
-
-  if (pathParts[0] === "upload") {
-    return verifySignedUploadUrl(url, signingSecret);
-  } else if (pathParts[0] === "download") {
-    return verifySignedDownloadUrl(url, signingSecret);
-  }
-
-  throw new Error("Unknown URL type");
-}
-
-/**
  * Create HMAC-SHA256 signature for the given payload
  */
 async function createSignature(

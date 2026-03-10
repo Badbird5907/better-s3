@@ -5,15 +5,15 @@ import { format } from "date-fns"
 import { CalendarIcon, Clock } from "lucide-react"
 import type { DateRange } from "react-day-picker"
 
-import { cn } from "@app/ui/lib/utils"
-import { Button } from "@app/ui/components/button"
-import { Calendar } from "@app/ui/components/calendar"
+import { cn } from "@silo/ui/lib/utils"
+import { Button } from "@silo/ui/components/button"
+import { Calendar } from "@silo/ui/components/calendar"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@app/ui/components/popover"
-import { Input } from "@app/ui/components/input"
+} from "@silo/ui/components/popover"
+import { Input } from "@silo/ui/components/input"
 
 interface TimeState {
   hour: string

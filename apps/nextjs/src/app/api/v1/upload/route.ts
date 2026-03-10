@@ -1,9 +1,9 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { db } from "@app/db/client";
-import { fileKeys } from "@app/db/schema";
-import { generateSignedUploadUrl } from "@app/shared/signing";
+import { db } from "@silo/db/client";
+import { fileKeys } from "@silo/db/schema";
+import { generateSignedUploadUrl } from "@silo/shared/signing";
 
 import { env } from "@/env";
 import {

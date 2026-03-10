@@ -4,7 +4,7 @@ import * as React from "react";
 import { AlertCircle, CheckCircle2, FileUp, Upload, X } from "lucide-react";
 import * as tus from "tus-js-client";
 
-import { Button } from "@app/ui/components/button";
+import { Button } from "@silo/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -13,16 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@app/ui/components/dialog";
-import { Label } from "@app/ui/components/label";
-import { Progress } from "@app/ui/components/progress";
+} from "@silo/ui/components/dialog";
+import { Label } from "@silo/ui/components/label";
+import { Progress } from "@silo/ui/components/progress";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@app/ui/components/select";
+} from "@silo/ui/components/select";
 import { nanoid } from "nanoid";
 
 interface Environment {

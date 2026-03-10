@@ -1,4 +1,4 @@
-import type { BetterS3Client } from "@app/sdk-core";
+import type { BetterS3Client } from "@silo/sdk-core";
 import type { ReactNode } from "react";
 import { createContext, useContext } from "react";
 

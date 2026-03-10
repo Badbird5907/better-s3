@@ -1,5 +1,5 @@
 {
-  "name": "@app/redis",
+  "name": "@silo/redis",
   "private": true,
   "type": "module",
   "exports": {
@@ -23,13 +23,13 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@app/eslint-config": "workspace:*",
-    "@app/prettier-config": "workspace:*",
-    "@app/tsconfig": "workspace:*",
+    "@silo/eslint-config": "workspace:*",
+    "@silo/prettier-config": "workspace:*",
+    "@silo/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@app/prettier-config"
+  "prettier": "@silo/prettier-config"
 }

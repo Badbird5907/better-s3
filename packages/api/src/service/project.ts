@@ -1,6 +1,6 @@
-import type { db as dbClient } from "@app/db/client";
-import { eq } from "@app/db";
-import { projectEnvironments, projects } from "@app/db/schema";
+import type { db as dbClient } from "@silo/db/client";
+import { eq } from "@silo/db";
+import { projectEnvironments, projects } from "@silo/db/schema";
 
 type Db = typeof dbClient;
 

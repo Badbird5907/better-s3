@@ -83,7 +83,7 @@ importers:
 
   .:
     devDependencies:
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:tooling/prettier
       '@turbo/gen':
@@ -107,7 +107,7 @@ importers:
 
   apps/cf-worker:
     dependencies:
-      '@app/shared':
+      '@silo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       file-type:
@@ -120,13 +120,13 @@ importers:
         specifier: 'catalog:'
         version: 4.3.6
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       '@cloudflare/workers-types':
@@ -147,28 +147,28 @@ importers:
 
   apps/nextjs:
     dependencies:
-      '@app/api':
+      '@silo/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@app/auth':
+      '@silo/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@app/db':
+      '@silo/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@app/redis':
+      '@silo/redis':
         specifier: workspace:*
         version: link:../../packages/redis
-      '@app/shared':
+      '@silo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@app/types':
+      '@silo/types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@app/ui':
+      '@silo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@app/validators':
+      '@silo/validators':
         specifier: workspace:*
         version: link:../../packages/validators
       '@better-auth/sso':
@@ -232,16 +232,16 @@ importers:
         specifier: 'catalog:'
         version: 4.3.6
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tailwind-config':
+      '@silo/tailwind-config':
         specifier: workspace:*
         version: link:../../tooling/tailwind
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       '@types/node':
@@ -274,22 +274,22 @@ importers:
 
   packages/api:
     dependencies:
-      '@app/auth':
+      '@silo/auth':
         specifier: workspace:*
         version: link:../auth
-      '@app/db':
+      '@silo/db':
         specifier: workspace:*
         version: link:../db
-      '@app/redis':
+      '@silo/redis':
         specifier: workspace:*
         version: link:../redis
-      '@app/shared':
+      '@silo/shared':
         specifier: workspace:*
         version: link:../shared
-      '@app/types':
+      '@silo/types':
         specifier: workspace:*
         version: link:../types
-      '@app/validators':
+      '@silo/validators':
         specifier: workspace:*
         version: link:../validators
       '@t3-oss/env-core':
@@ -314,13 +314,13 @@ importers:
         specifier: 'catalog:'
         version: 4.3.6
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       '@types/react':
@@ -338,7 +338,7 @@ importers:
 
   packages/auth:
     dependencies:
-      '@app/db':
+      '@silo/db':
         specifier: workspace:*
         version: link:../db
       '@better-auth/sso':
@@ -354,13 +354,13 @@ importers:
         specifier: 'catalog:'
         version: 4.3.6
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       '@better-auth/cli':
@@ -397,13 +397,13 @@ importers:
         specifier: 'catalog:'
         version: 4.3.6
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       '@types/node':
@@ -437,13 +437,13 @@ importers:
         specifier: 'catalog:'
         version: 4.3.6
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       '@types/node':
@@ -461,23 +461,23 @@ importers:
 
   packages/shared:
     dependencies:
-      '@app/types':
+      '@silo/types':
         specifier: workspace:*
         version: link:../types
-      '@app/validators':
+      '@silo/validators':
         specifier: workspace:*
         version: link:../validators
       '@t3-oss/env-core':
         specifier: ^0.13.10
         version: 0.13.10(typescript@5.9.3)(zod@4.3.6)
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       eslint:
@@ -492,7 +492,7 @@ importers:
 
   packages/types:
     dependencies:
-      '@app/db':
+      '@silo/db':
         specifier: workspace:*
         version: link:../db
       drizzle-zod:
@@ -502,13 +502,13 @@ importers:
         specifier: 'catalog:'
         version: 4.3.6
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       '@types/node':
@@ -596,13 +596,13 @@ importers:
         specifier: ^3.3.1
         version: 3.4.0
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       '@types/react':
@@ -636,13 +636,13 @@ importers:
         specifier: 'catalog:'
         version: 4.3.6
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       eslint:
@@ -657,17 +657,17 @@ importers:
 
   sdk/core:
     dependencies:
-      '@app/shared':
+      '@silo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       eslint:
@@ -682,17 +682,17 @@ importers:
 
   sdk/react:
     dependencies:
-      '@app/sdk-core':
+      '@silo/sdk-core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../../tooling/prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
       '@types/react':
@@ -741,10 +741,10 @@ importers:
         specifier: ^8.46.2
         version: 8.54.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
     devDependencies:
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../typescript
       '@types/node':
@@ -774,7 +774,7 @@ importers:
         specifier: ^0.7.1
         version: 0.7.2(@ianvs/prettier-plugin-sort-imports@4.7.0(prettier@3.8.1))(prettier@3.8.1)
     devDependencies:
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../typescript
       '@types/node':
@@ -796,13 +796,13 @@ importers:
         specifier: 'catalog:'
         version: 4.1.18
     devDependencies:
-      '@app/eslint-config':
+      '@silo/eslint-config':
         specifier: workspace:*
         version: link:../eslint
-      '@app/prettier-config':
+      '@silo/prettier-config':
         specifier: workspace:*
         version: link:../prettier
-      '@app/tsconfig':
+      '@silo/tsconfig':
         specifier: workspace:*
         version: link:../typescript
       '@types/node':

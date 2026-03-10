@@ -17,7 +17,7 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@app/ui/components/sidebar";
+} from "@silo/ui/components/sidebar";
 
 import { authClient } from "@/auth/client";
 import { NavMain } from "@/components/nav-main";

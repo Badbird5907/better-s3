@@ -11,10 +11,10 @@
   },
   "aliases": {
     "ui": "src/components",
-    "components": "@app/ui/components",
-    "utils": "@app/ui/lib/utils",
-    "lib": "@app/ui/lib",
-    "hooks": "@app/ui/hooks"
+    "components": "@silo/ui/components",
+    "utils": "@silo/ui/lib/utils",
+    "lib": "@silo/ui/lib",
+    "hooks": "@silo/ui/hooks"
   },
   "iconLibrary": "lucide"
 }

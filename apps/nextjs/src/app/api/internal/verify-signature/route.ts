@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { eq } from "@app/db";
-import { db } from "@app/db/client";
-import { apiKeys, projectEnvironments } from "@app/db/schema";
+import { eq } from "@silo/db";
+import { db } from "@silo/db/client";
+import { apiKeys, projectEnvironments } from "@silo/db/schema";
 
 import { env } from "../../../../env";
 

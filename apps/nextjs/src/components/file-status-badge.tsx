@@ -1,6 +1,6 @@
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 
-import { Badge } from "@app/ui/components/badge";
+import { Badge } from "@silo/ui/components/badge";
 
 type FileStatus = "completed" | "pending" | "failed";
 

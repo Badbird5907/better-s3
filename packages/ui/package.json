@@ -1,5 +1,5 @@
 {
-  "name": "@app/ui",
+  "name": "@silo/ui",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -37,9 +37,9 @@
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
-    "@app/eslint-config": "workspace:*",
-    "@app/prettier-config": "workspace:*",
-    "@app/tsconfig": "workspace:*",
+    "@silo/eslint-config": "workspace:*",
+    "@silo/prettier-config": "workspace:*",
+    "@silo/tsconfig": "workspace:*",
     "@types/react": "catalog:react19",
     "eslint": "catalog:",
     "glob": "^13.0.0",
@@ -53,7 +53,7 @@
     "react": "catalog:react19",
     "zod": "catalog:"
   },
-  "prettier": "@app/prettier-config",
+  "prettier": "@silo/prettier-config",
   "exports": {
     "./components/accordion": "./src/components/accordion.tsx",
     "./components/avatar": "./src/components/avatar.tsx",

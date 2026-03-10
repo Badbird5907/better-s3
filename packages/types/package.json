@@ -1,5 +1,5 @@
 {
-  "name": "@app/types",
+  "name": "@silo/types",
   "private": true,
   "type": "module",
   "exports": {
@@ -16,18 +16,18 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@app/db": "workspace:*",
+    "@silo/db": "workspace:*",
     "drizzle-zod": "^0.8.3",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@app/eslint-config": "workspace:*",
-    "@app/prettier-config": "workspace:*",
-    "@app/tsconfig": "workspace:*",
+    "@silo/eslint-config": "workspace:*",
+    "@silo/prettier-config": "workspace:*",
+    "@silo/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@app/prettier-config"
+  "prettier": "@silo/prettier-config"
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@app/shared",
+  "name": "@silo/shared",
   "private": true,
   "type": "module",
   "exports": {
@@ -18,17 +18,17 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "devDependencies": {
-    "@app/eslint-config": "workspace:*",
-    "@app/prettier-config": "workspace:*",
-    "@app/tsconfig": "workspace:*",
+    "@silo/eslint-config": "workspace:*",
+    "@silo/prettier-config": "workspace:*",
+    "@silo/tsconfig": "workspace:*",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@app/prettier-config",
+  "prettier": "@silo/prettier-config",
   "dependencies": {
-    "@app/types": "workspace:*",
-    "@app/validators": "workspace:*",
+    "@silo/types": "workspace:*",
+    "@silo/validators": "workspace:*",
     "@t3-oss/env-core": "^0.13.10"
   }
 }

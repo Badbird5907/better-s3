@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { Skeleton } from "@app/ui/components/skeleton";
+import { Skeleton } from "@silo/ui/components/skeleton";
 
 import { authClient } from "@/auth/client";
 import {

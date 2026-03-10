@@ -4,13 +4,13 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { nextCookies } from "better-auth/next-js";
 
-import { initAuth } from "@app/auth";
+import { initAuth } from "@silo/auth";
 
 import { env } from "@/env";
 import { nanoid } from "nanoid";
-import { db } from "@app/db/client";
-import { eq } from "@app/db";
-import { members,users } from "@app/db/schema";
+import { db } from "@silo/db/client";
+import { eq } from "@silo/db";
+import { members,users } from "@silo/db/schema";
 
 const baseUrl =
   env.VERCEL_ENV === "production"

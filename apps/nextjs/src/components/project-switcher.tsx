@@ -23,13 +23,13 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@app/ui/components/dropdown-menu";
+} from "@silo/ui/components/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@app/ui/components/sidebar";
+} from "@silo/ui/components/sidebar";
 
 import { CreateOrgDialog } from "@/components/create-org-dialog";
 import { OrganizationMenuItems } from "@/components/organization-menu-items";

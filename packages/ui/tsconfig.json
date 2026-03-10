@@ -1,11 +1,11 @@
 {
-  "extends": "@app/tsconfig/base.json",
+  "extends": "@silo/tsconfig/base.json",
   "compilerOptions": {
     "lib": ["ES2022", "dom", "dom.iterable"],
     "jsx": "preserve",
     "rootDir": ".",
     "paths": {
-      "@app/ui/*": ["./src/*"]
+      "@silo/ui/*": ["./src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

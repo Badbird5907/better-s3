@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@app/ui/components/button";
+import { Button } from "@silo/ui/components/button";
 
 import { authClient } from "@/auth/client";
 

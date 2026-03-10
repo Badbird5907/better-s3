@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@app/ui/components/button";
-import { Input } from "@app/ui/components/input";
-import { Label } from "@app/ui/components/label";
-import { Separator } from "@app/ui/components/separator";
+import { Button } from "@silo/ui/components/button";
+import { Input } from "@silo/ui/components/input";
+import { Label } from "@silo/ui/components/label";
+import { Separator } from "@silo/ui/components/separator";
 
 import { authClient } from "@/auth/client";
 import Link from "next/link";

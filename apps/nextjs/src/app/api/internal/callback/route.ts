@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { markUploadAsFailed, UploadFailureError } from "@app/api/services";
-import { eq, sql } from "@app/db";
-import { db } from "@app/db/client";
+import { markUploadAsFailed, UploadFailureError } from "@silo/api/services";
+import { eq, sql } from "@silo/db";
+import { db } from "@silo/db/client";
 import {
   fileKeys,
   files,
@@ -10,8 +10,8 @@ import {
   projects,
   usageDaily,
   usageEvents,
-} from "@app/db/schema";
-import { publishMessage } from "@app/redis";
+} from "@silo/db/schema";
+import { publishMessage } from "@silo/redis";
 
 import { env } from "../../../../env";
 

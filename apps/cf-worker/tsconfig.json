@@ -1,5 +1,5 @@
 {
-  "extends": "@app/tsconfig/base.json",
+  "extends": "@silo/tsconfig/base.json",
   "compilerOptions": {
     "types": ["@cloudflare/workers-types"]
   },

@@ -1,5 +1,5 @@
 {
-  "name": "@app/sdk-react",
+  "name": "@silo/sdk-react",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -18,12 +18,12 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@app/sdk-core": "workspace:*"
+    "@silo/sdk-core": "workspace:*"
   },
   "devDependencies": {
-    "@app/eslint-config": "workspace:*",
-    "@app/prettier-config": "workspace:*",
-    "@app/tsconfig": "workspace:*",
+    "@silo/eslint-config": "workspace:*",
+    "@silo/prettier-config": "workspace:*",
+    "@silo/tsconfig": "workspace:*",
     "@types/react": "catalog:react19",
     "eslint": "catalog:",
     "prettier": "catalog:",
@@ -33,5 +33,5 @@
   "peerDependencies": {
     "react": "catalog:react19"
   },
-  "prettier": "@app/prettier-config"
+  "prettier": "@silo/prettier-config"
 }

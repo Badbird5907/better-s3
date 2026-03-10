@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 
-import { and, eq } from "@app/db";
-import { db } from "@app/db/client";
-import { members, organizations } from "@app/db/schema";
+import { and, eq } from "@silo/db";
+import { db } from "@silo/db/client";
+import { members, organizations } from "@silo/db/schema";
 
 import { auth, getSession } from "@/auth/server";
 

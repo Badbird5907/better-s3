@@ -4,8 +4,8 @@ import {
   lookupFileKey,
   markUploadAsFailed,
   UploadFailureError,
-} from "@app/api/services";
-import { db } from "@app/db/client";
+} from "@silo/api/services";
+import { db } from "@silo/db/client";
 
 import { env } from "@/env";
 import {

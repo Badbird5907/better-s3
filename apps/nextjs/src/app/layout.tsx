@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import { Toaster } from "@app/ui/components/sonner";
-import { cn } from "@app/ui/lib/utils";
+import { Toaster } from "@silo/ui/components/sonner";
+import { cn } from "@silo/ui/lib/utils";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { env } from "@/env";

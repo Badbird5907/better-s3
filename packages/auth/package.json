@@ -1,5 +1,5 @@
 {
-  "name": "@app/auth",
+  "name": "@silo/auth",
   "private": true,
   "type": "module",
   "exports": {
@@ -17,20 +17,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@app/db": "workspace:*",
     "@better-auth/sso": "^1.4.17",
+    "@silo/db": "workspace:*",
     "@t3-oss/env-core": "^0.13.10",
     "better-auth": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@app/eslint-config": "workspace:*",
-    "@app/prettier-config": "workspace:*",
-    "@app/tsconfig": "workspace:*",
     "@better-auth/cli": "catalog:",
+    "@silo/eslint-config": "workspace:*",
+    "@silo/prettier-config": "workspace:*",
+    "@silo/tsconfig": "workspace:*",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@app/prettier-config"
+  "prettier": "@silo/prettier-config"
 }

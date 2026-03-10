@@ -2,8 +2,8 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { and, eq } from "@app/db";
-import {  projects } from "@app/db/schema";
+import { and, eq } from "@silo/db";
+import {  projects } from "@silo/db/schema";
 
 import {
   createEnvironment,

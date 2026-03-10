@@ -1,4 +1,4 @@
-declare module "@app/ui/components/date-range-picker" {
+declare module "@silo/ui/components/date-range-picker" {
   import type { JSX } from "react";
 
   interface DateRangePickerProps {

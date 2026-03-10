@@ -1,7 +1,7 @@
 import { defineConfig } from "eslint/config";
 
-import { baseConfig } from "@app/eslint-config/base";
-import { reactConfig } from "@app/eslint-config/react";
+import { baseConfig } from "@silo/eslint-config/base";
+import { reactConfig } from "@silo/eslint-config/react";
 
 export default defineConfig(
   {

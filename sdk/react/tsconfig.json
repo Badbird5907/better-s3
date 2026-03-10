@@ -1,5 +1,5 @@
 {
-  "extends": "@app/tsconfig/compiled-package.json",
+  "extends": "@silo/tsconfig/compiled-package.json",
   "compilerOptions": {
     "jsx": "preserve",
     "lib": ["ES2022", "WebWorker"]

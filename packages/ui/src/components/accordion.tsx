@@ -4,7 +4,7 @@ import type * as React from "react";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { ChevronDownIcon } from "lucide-react";
 
-import { cn } from "@app/ui/lib/utils";
+import { cn } from "@silo/ui/lib/utils";
 
 function Accordion({
   ...props

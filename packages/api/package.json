@@ -1,5 +1,5 @@
 {
-  "name": "@app/api",
+  "name": "@silo/api",
   "private": true,
   "type": "module",
   "exports": {
@@ -19,12 +19,12 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@app/auth": "workspace:*",
-    "@app/db": "workspace:*",
-    "@app/redis": "workspace:*",
-    "@app/shared": "workspace:*",
-    "@app/types": "workspace:*",
-    "@app/validators": "workspace:*",
+    "@silo/auth": "workspace:*",
+    "@silo/db": "workspace:*",
+    "@silo/redis": "workspace:*",
+    "@silo/shared": "workspace:*",
+    "@silo/types": "workspace:*",
+    "@silo/validators": "workspace:*",
     "@t3-oss/env-core": "^0.13.10",
     "@trpc/server": "catalog:",
     "@upstash/redis": "^1.36.1",
@@ -34,13 +34,13 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@app/eslint-config": "workspace:*",
-    "@app/prettier-config": "workspace:*",
-    "@app/tsconfig": "workspace:*",
+    "@silo/eslint-config": "workspace:*",
+    "@silo/prettier-config": "workspace:*",
+    "@silo/tsconfig": "workspace:*",
     "@types/react": "catalog:react19",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@app/prettier-config"
+  "prettier": "@silo/prettier-config"
 }

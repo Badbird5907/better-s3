@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 
-import { appRouter, createTRPCContext } from "@app/api";
+import { appRouter, createTRPCContext } from "@silo/api";
 
 import { auth } from "@/auth/server";
 

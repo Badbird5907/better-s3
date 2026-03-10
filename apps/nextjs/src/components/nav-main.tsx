@@ -9,7 +9,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@app/ui/components/collapsible";
+} from "@silo/ui/components/collapsible";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -19,7 +19,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-} from "@app/ui/components/sidebar";
+} from "@silo/ui/components/sidebar";
 
 export interface NavItem {
   title: string;

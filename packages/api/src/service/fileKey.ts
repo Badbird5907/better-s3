@@ -1,7 +1,7 @@
-import type { db as dbClient } from "@app/db/client";
-import { and, eq, sql } from "@app/db";
-import { fileKeys, projects, usageDaily, usageEvents } from "@app/db/schema";
-import { publishMessage } from "@app/redis";
+import type { db as dbClient } from "@silo/db/client";
+import { and, eq, sql } from "@silo/db";
+import { fileKeys, projects, usageDaily, usageEvents } from "@silo/db/schema";
+import { publishMessage } from "@silo/redis";
 
 type Db = typeof dbClient;
 

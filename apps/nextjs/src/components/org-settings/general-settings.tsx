@@ -5,16 +5,16 @@ import { useMutation } from "@tanstack/react-query";
 import { Check, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@app/ui/components/button";
+import { Button } from "@silo/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@app/ui/components/card";
-import { Input } from "@app/ui/components/input";
-import { Label } from "@app/ui/components/label";
+} from "@silo/ui/components/card";
+import { Input } from "@silo/ui/components/input";
+import { Label } from "@silo/ui/components/label";
 
 import { authClient } from "@/auth/client";
 

@@ -7,14 +7,14 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { FolderKanban, Plus, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@app/ui/components/button";
+import { Button } from "@silo/ui/components/button";
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@app/ui/components/card";
-import { Skeleton } from "@app/ui/components/skeleton";
+} from "@silo/ui/components/card";
+import { Skeleton } from "@silo/ui/components/skeleton";
 
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 import { useOrganization } from "@/hooks/use-organization";

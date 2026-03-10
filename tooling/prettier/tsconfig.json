@@ -1,5 +1,5 @@
 {
-  "extends": "@app/tsconfig/base.json",
+  "extends": "@silo/tsconfig/base.json",
   "include": ["."],
   "exclude": ["node_modules"]
 }

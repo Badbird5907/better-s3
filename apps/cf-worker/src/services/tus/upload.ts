@@ -98,8 +98,12 @@ export async function finalizeUpload(
     const actualMimeType = await detectMimeType(headerBytes);
     const actualHash = metadata.claimedHash ?? null;
 
+    // `application/octet-stream` means detector could not confidently identify
+    // the format (common for proprietary file types like .af). Only enforce
+    // strict mismatch checks when we detected a specific MIME type.
     if (
       metadata.claimedMimeType &&
+      actualMimeType !== "application/octet-stream" &&
       !areMimeTypesEquivalent(metadata.claimedMimeType, actualMimeType)
     ) {
       await c.env.R2_BUCKET.delete(metadata.adapterKey);

@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Layers, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@app/ui/components/button";
+import { Button } from "@silo/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -14,16 +14,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@app/ui/components/dialog";
-import { Input } from "@app/ui/components/input";
-import { Label } from "@app/ui/components/label";
+} from "@silo/ui/components/dialog";
+import { Input } from "@silo/ui/components/input";
+import { Label } from "@silo/ui/components/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@app/ui/components/select";
+} from "@silo/ui/components/select";
 
 import { useTRPC } from "@/trpc/react";
 

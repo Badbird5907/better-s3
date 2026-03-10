@@ -2,10 +2,10 @@ import { headers } from "next/headers";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { and, eq, gt, isNull, or } from "@app/db";
-import { db } from "@app/db/client";
-import { apiKeys, fileKeys, members, projects } from "@app/db/schema";
-import { generateSignedUploadUrlFromHash } from "@app/shared/signing";
+import { and, eq, gt, isNull, or } from "@silo/db";
+import { db } from "@silo/db/client";
+import { apiKeys, fileKeys, members, projects } from "@silo/db/schema";
+import { generateSignedUploadUrlFromHash } from "@silo/shared/signing";
 
 import { auth } from "@/auth/server";
 import { env } from "@/env";

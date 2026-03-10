@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gte, lte, sql, sum } from "drizzle-orm";
 import { z } from "zod/v4";
 
-import { files, projects, usageDaily, usageEvents } from "@app/db/schema";
+import { files, projects, usageDaily, usageEvents } from "@silo/db/schema";
 
 import { organizationProcedure } from "../trpc";
 

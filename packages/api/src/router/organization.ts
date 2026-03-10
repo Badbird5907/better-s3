@@ -2,8 +2,8 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { and, asc, desc, eq } from "@app/db";
-import { invitations, members, organizations, users } from "@app/db/schema";
+import { and, asc, desc, eq } from "@silo/db";
+import { invitations, members, organizations, users } from "@silo/db/schema";
 
 import { organizationProcedure, protectedProcedure } from "../trpc";
 

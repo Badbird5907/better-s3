@@ -3,15 +3,15 @@ import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { z } from "zod/v4";
 
-import { and, eq, inArray } from "@app/db";
+import { and, eq, inArray } from "@silo/db";
 import {
   apiKeys,
   members,
   projectEnvironments,
   projects,
   users,
-} from "@app/db/schema";
-import { deriveSigningSecretFromHash } from "@app/shared/signing";
+} from "@silo/db/schema";
+import { deriveSigningSecretFromHash } from "@silo/shared/signing";
 
 import { organizationProcedure } from "../trpc";
 

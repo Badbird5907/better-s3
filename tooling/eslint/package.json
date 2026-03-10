@@ -1,5 +1,5 @@
 {
-  "name": "@app/eslint-config",
+  "name": "@silo/eslint-config",
   "private": true,
   "type": "module",
   "exports": {
@@ -24,12 +24,12 @@
     "typescript-eslint": "^8.46.2"
   },
   "devDependencies": {
-    "@app/prettier-config": "workspace:*",
-    "@app/tsconfig": "workspace:*",
+    "@silo/prettier-config": "workspace:*",
+    "@silo/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@app/prettier-config"
+  "prettier": "@silo/prettier-config"
 }

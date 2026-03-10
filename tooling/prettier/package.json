@@ -1,5 +1,5 @@
 {
-  "name": "@app/prettier-config",
+  "name": "@silo/prettier-config",
   "private": true,
   "type": "module",
   "exports": {
@@ -16,9 +16,9 @@
     "prettier-plugin-tailwindcss": "^0.7.1"
   },
   "devDependencies": {
-    "@app/tsconfig": "workspace:*",
+    "@silo/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@app/prettier-config"
+  "prettier": "@silo/prettier-config"
 }

@@ -2,13 +2,13 @@
 
 import { headers } from "next/headers";
 
-import { and, eq } from "@app/db";
-import { db } from "@app/db/client";
-import { fileKeys, projects } from "@app/db/schema";
+import { and, eq } from "@silo/db";
+import { db } from "@silo/db/client";
+import { fileKeys, projects } from "@silo/db/schema";
 import {
   generatePublicDownloadUrl,
   generateSignedDownloadUrl,
-} from "@app/shared/signing";
+} from "@silo/shared/signing";
 
 import { auth } from "@/auth/server";
 import { env } from "@/env";

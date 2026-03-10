@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@app/ui/components/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@silo/ui/components/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,13 +19,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@app/ui/components/dropdown-menu";
+} from "@silo/ui/components/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@app/ui/components/sidebar";
+} from "@silo/ui/components/sidebar";
 
 export interface User {
   name: string;

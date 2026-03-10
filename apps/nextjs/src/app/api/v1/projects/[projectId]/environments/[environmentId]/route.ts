@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { deleteEnvironment, updateEnvironment } from "@app/api/services";
-import { db } from "@app/db/client";
+import { deleteEnvironment, updateEnvironment } from "@silo/api/services";
+import { db } from "@silo/db/client";
 
 import {
   authenticateRequest,

@@ -1,6 +1,6 @@
-import { eq } from "@app/db";
-import { db } from "@app/db/client";
-import { projects } from "@app/db/schema";
+import { eq } from "@silo/db";
+import { db } from "@silo/db/client";
+import { projects } from "@silo/db/schema";
 
 import { env } from "../../../../env";
 
