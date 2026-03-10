@@ -64,13 +64,11 @@ export default function ProjectSettingsPage({
           }}
           organizationId={organizationId}
         />
-        <div className="flex w-full flex-row gap-6">
-          <EnvironmentsList
-            projectId={projectId}
-            organizationId={organizationId}
-          />
-          <ApiKeysList projectId={projectId} organizationId={organizationId} />
-        </div>
+        <EnvironmentsList
+          projectId={projectId}
+          organizationId={organizationId}
+        />
+        <ApiKeysList projectId={projectId} organizationId={organizationId} />
       </div>
     </>
   );
