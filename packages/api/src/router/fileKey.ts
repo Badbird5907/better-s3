@@ -9,7 +9,6 @@ import {
   eq,
   ilike,
   isNotNull,
-  isNull,
   or,
   sql
 } from "drizzle-orm";
@@ -17,6 +16,7 @@ import { z } from "zod/v4";
 
 import { fileKeys, files, projectEnvironments, projects } from "@app/db/schema";
 
+import { markUploadAsFailed, UploadFailureError } from "../service/fileKey";
 import { organizationProcedure } from "../trpc";
 
 const sortFieldSchema = z.enum(["createdAt", "size", "mimeType", "fileName"]);
@@ -78,12 +78,11 @@ export const fileKeyRouter = {
       }
 
       if (input.status === "pending") {
-        conditions.push(isNull(fileKeys.fileId));
-        conditions.push(isNull(fileKeys.uploadFailedAt));
+        conditions.push(eq(fileKeys.status, "pending"));
       } else if (input.status === "completed") {
-        conditions.push(isNotNull(fileKeys.fileId));
+        conditions.push(eq(fileKeys.status, "completed"));
       } else if (input.status === "failed") {
-        conditions.push(isNotNull(fileKeys.uploadFailedAt));
+        conditions.push(eq(fileKeys.status, "failed"));
       }
 
       const whereClause = and(...conditions);
@@ -119,6 +118,7 @@ export const fileKeyRouter = {
           claimedHash: fileKeys.claimedHash,
           claimedMimeType: fileKeys.claimedMimeType,
           claimedSize: fileKeys.claimedSize,
+          status: fileKeys.status,
           uploadCompletedAt: fileKeys.uploadCompletedAt,
           uploadFailedAt: fileKeys.uploadFailedAt,
           createdAt: fileKeys.createdAt,
@@ -159,11 +159,7 @@ export const fileKeyRouter = {
         uploadCompletedAt: r.uploadCompletedAt,
         uploadFailedAt: r.uploadFailedAt,
         createdAt: r.createdAt,
-        status: r.fileId
-          ? ("completed" as const)
-          : r.uploadFailedAt
-            ? ("failed" as const)
-            : ("pending" as const),
+        status: r.status,
         hash: r.fileHash ?? r.claimedHash,
         mimeType: r.fileMimeType ?? r.claimedMimeType,
         size: r.fileSize ?? r.claimedSize,
@@ -207,26 +203,20 @@ export const fileKeyRouter = {
       const [completedResult] = await ctx.db
         .select({ count: count() })
         .from(fileKeys)
-        .where(and(baseWhere, isNotNull(fileKeys.fileId)));
+        .where(and(baseWhere, eq(fileKeys.status, "completed")));
 
       const [pendingResult] = await ctx.db
         .select({ count: count() })
         .from(fileKeys)
-        .where(
-          and(
-            baseWhere,
-            isNull(fileKeys.fileId),
-            isNull(fileKeys.uploadFailedAt),
-          ),
-        );
+        .where(and(baseWhere, eq(fileKeys.status, "pending")));
 
       const [failedResult] = await ctx.db
         .select({ count: count() })
         .from(fileKeys)
-        .where(and(baseWhere, isNotNull(fileKeys.uploadFailedAt)));
+        .where(and(baseWhere, eq(fileKeys.status, "failed")));
 
       const completedFileKeys = await ctx.db.query.fileKeys.findMany({
-        where: and(baseWhere, isNotNull(fileKeys.fileId)),
+        where: and(baseWhere, eq(fileKeys.status, "completed")),
         with: { file: { columns: { size: true } } },
       });
 
@@ -275,7 +265,7 @@ export const fileKeyRouter = {
         .where(
           and(
             eq(fileKeys.projectId, input.projectId),
-            isNull(fileKeys.fileId),
+            eq(fileKeys.status, "pending"),
             isNotNull(fileKeys.claimedMimeType),
           ),
         );
@@ -407,5 +397,58 @@ export const fileKeyRouter = {
       await ctx.db.delete(fileKeys).where(eq(fileKeys.id, input.id));
 
       return { success: true };
+    }),
+
+  markFailed: organizationProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        projectId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const project = await ctx.db.query.projects.findFirst({
+        where: eq(projects.id, input.projectId),
+      });
+
+      if (project?.parentOrganizationId !== ctx.organizationId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You don't have access to this project",
+        });
+      }
+
+      const fileKey = await ctx.db.query.fileKeys.findFirst({
+        where: and(
+          eq(fileKeys.id, input.id),
+          eq(fileKeys.projectId, input.projectId),
+        ),
+      });
+
+      if (!fileKey) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "FileKey not found",
+        });
+      }
+
+      try {
+        const updated = await markUploadAsFailed(ctx.db, {
+          projectId: input.projectId,
+          environmentId: fileKey.environmentId,
+          fileKeyId: input.id,
+          error: "Manually marked as failed",
+        });
+
+        return updated;
+      } catch (error) {
+        if (error instanceof UploadFailureError) {
+          throw new TRPCError({
+            code: error.code === "NOT_FOUND" ? "NOT_FOUND" : "BAD_REQUEST",
+            message: error.message,
+          });
+        }
+        throw error;
+      }
     }),
 } satisfies TRPCRouterRecord;

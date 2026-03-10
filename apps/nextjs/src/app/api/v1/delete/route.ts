@@ -1,143 +1,136 @@
 import { z } from "zod";
 
+import { lookupFileKey } from "@app/api/services";
 import { eq } from "@app/db";
 import { db } from "@app/db/client";
-import { fileKeys, files } from "@app/db/schema";
+import { files } from "@app/db/schema";
 
-import { env } from "../../../../env";
-import { withApiKeyAuthEnvironment } from "../../../../lib/api-key-middleware";
+import { env } from "@/env";
+import {
+  authenticateRequest,
+  jsonError,
+  validateEnvironmentAccess,
+  validateProjectAccess,
+} from "@/lib/api-key-middleware";
 
-const schema = z.object({
-  projectId: z.string(),
-  environmentId: z.string(),
-  accessKey: z.string(),
-});
+const schema = z
+  .object({
+    projectId: z.string(),
+    environmentId: z.string(),
+    fileKeyId: z.string().optional(),
+    accessKey: z.string().optional(),
+  })
+  .refine((data) => data.fileKeyId ?? data.accessKey, {
+    message: "Either fileKeyId or accessKey must be provided",
+  });
 
 export async function POST(request: Request) {
-  return withApiKeyAuthEnvironment(request, async (req, context) => {
-    // context now includes: project, organization, environment
-    // projectId and environmentId are already validated!
+  const authResult = await authenticateRequest(request);
+  if (authResult instanceof Response) return authResult;
 
-    try {
-      const body = (await req.json()) as z.infer<typeof schema>;
-      const { projectId, environmentId, accessKey } = schema.parse(body);
+  // Parse request body
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("Bad Request", "Invalid JSON body.", 400);
+  }
 
-      // Find the file key
-      const fileKey = await db.query.fileKeys.findFirst({
-        where: eq(fileKeys.accessKey, accessKey),
-        with: {
-          file: true,
-        },
-      });
+  const result = schema.safeParse(body);
+  if (!result.success) {
+    return jsonError(
+      "Bad Request",
+      "Invalid request body.",
+      400,
+      result.error.issues,
+    );
+  }
 
-      if (!fileKey) {
-        return new Response(
-          JSON.stringify({
-            error: "Not Found",
-            message: "File not found",
-          }),
-          {
-            status: 404,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-      }
+  const { projectId, environmentId, fileKeyId, accessKey } = result.data;
 
-      // Check if the file has been uploaded (fileId is set)
-      if (!fileKey.file) {
-        return new Response(
-          JSON.stringify({
-            error: "Not Found",
-            message: "File has not been uploaded yet",
-          }),
-          {
-            status: 404,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-      }
+  // Validate project access
+  const project = await validateProjectAccess(authResult, projectId);
+  if (project instanceof Response) return project;
 
-      // Now we know fileKey.file is not null, check project/environment ownership
-      if (
-        fileKey.projectId !== projectId ||
-        fileKey.environmentId !== environmentId
-      ) {
-        return new Response(
-          JSON.stringify({
-            error: "Forbidden",
-            message:
-              "File does not belong to the specified project or environment",
-          }),
-          {
-            status: 403,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-      }
+  // Validate environment access
+  const environment = await validateEnvironmentAccess(environmentId, projectId);
+  if (environment instanceof Response) return environment;
 
-      const deleteUrl = `${env.WORKER_URL}/delete/${fileKey.file.adapterKey}`;
-      const deleteResponse = await fetch(deleteUrl, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${env.CALLBACK_SECRET}`,
-        },
-      });
+  try {
+    // Find the file key by either identifier
+    const fileKey = await lookupFileKey(db, {
+      projectId,
+      fileKeyId,
+      accessKey,
+    });
 
-      if (!deleteResponse.ok) {
-        return new Response(
-          JSON.stringify({
-            error: "Internal Server Error",
-            message: "Failed to delete file from storage",
-          }),
-          {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-      }
+    if (!fileKey) {
+      return jsonError("Not Found", "File not found.", 404);
+    }
 
-      // if we do dedupe, this will need to be handled differently
-      await db.delete(files).where(eq(files.id, fileKey.file.id));
+    // Check if the file has been uploaded (fileId is set)
+    if (!fileKey.file) {
+      return jsonError("Not Found", "File has not been uploaded yet.", 404);
+    }
 
-      return new Response(
-        JSON.stringify({
-          message: "File deleted successfully",
-          projectId: context.project.id,
-          projectName: context.project.name,
-          environmentId: context.environment.id,
-          environmentName: context.environment.name,
-          accessKey,
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return new Response(
-          JSON.stringify({
-            error: "Bad Request",
-            message: "Invalid request body",
-            details: error.issues,
-          }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-      }
-
-      return new Response(
-        JSON.stringify({
-          error: "Internal Server Error",
-          message: "An unexpected error occurred",
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        },
+    // Check environment ownership
+    if (fileKey.environmentId !== environmentId) {
+      return jsonError(
+        "Forbidden",
+        "File does not belong to the specified environment.",
+        403,
       );
     }
-  });
+
+    const deleteUrl = `${env.WORKER_URL}/internal/delete/${fileKey.file.adapterKey}`;
+    const deleteResponse = await fetch(deleteUrl, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${env.CALLBACK_SECRET}`,
+      },
+    });
+
+    if (!deleteResponse.ok) {
+      return jsonError(
+        "Internal Server Error",
+        "Failed to delete file from storage.",
+        500,
+      );
+    }
+
+    // if we do dedupe, this will need to be handled differently
+    await db.delete(files).where(eq(files.id, fileKey.file.id));
+
+    return new Response(
+      JSON.stringify({
+        message: "File deleted successfully",
+        projectId: project.id,
+        projectName: project.name,
+        environmentId: environment.id,
+        environmentName: environment.name,
+        fileKeyId: fileKey.id,
+        accessKey: fileKey.accessKey,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return jsonError(
+        "Bad Request",
+        "Invalid request body.",
+        400,
+        error.issues,
+      );
+    }
+
+    console.error("Error deleting file:", error);
+    return jsonError(
+      "Internal Server Error",
+      "An unexpected error occurred.",
+      500,
+    );
+  }
 }

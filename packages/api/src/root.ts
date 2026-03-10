@@ -1,6 +1,7 @@
 import { analyticsRouter } from "./router/analytics";
 import { apiKeyRouter } from "./router/apiKey";
 import { authRouter } from "./router/auth";
+import { environmentRouter } from "./router/environment";
 import { fileRouter } from "./router/file";
 import { fileKeyRouter } from "./router/fileKey";
 import { organizationRouter } from "./router/organization";
@@ -11,6 +12,7 @@ export const appRouter = createTRPCRouter({
   analytics: analyticsRouter,
   apiKey: apiKeyRouter,
   auth: authRouter,
+  environment: environmentRouter,
   file: fileRouter,
   fileKey: fileKeyRouter,
   organization: organizationRouter,

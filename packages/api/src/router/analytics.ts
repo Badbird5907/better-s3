@@ -3,12 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gte, lte, sql, sum } from "drizzle-orm";
 import { z } from "zod/v4";
 
-import {
-  files,
-  projects,
-  usageDaily,
-  usageEvents,
-} from "@app/db/schema";
+import { files, projects, usageDaily, usageEvents } from "@app/db/schema";
 
 import { organizationProcedure } from "../trpc";
 
@@ -58,7 +53,8 @@ export const analyticsRouter = {
 
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const startDate = input.startDate ?? thirtyDaysAgo.toISOString().slice(0, 10);
+      const startDate =
+        input.startDate ?? thirtyDaysAgo.toISOString().slice(0, 10);
       const endDate = input.endDate ?? now.toISOString().slice(0, 10);
 
       const dailyStats = await ctx.db
@@ -153,7 +149,8 @@ export const analyticsRouter = {
     .query(async ({ ctx, input }) => {
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const startDate = input.startDate ?? thirtyDaysAgo.toISOString().slice(0, 10);
+      const startDate =
+        input.startDate ?? thirtyDaysAgo.toISOString().slice(0, 10);
       const endDate = input.endDate ?? now.toISOString().slice(0, 10);
 
       const dailyStats = await ctx.db
@@ -282,7 +279,15 @@ export const analyticsRouter = {
         with: {
           project: { columns: { name: true, slug: true } },
           environment: { columns: { name: true, slug: true } },
-          file: { columns: { id: true } },
+          file: {
+            columns: { id: true },
+            with: {
+              fileKeys: {
+                columns: { id: true, fileName: true },
+                limit: 1,
+              },
+            },
+          },
         },
       });
 

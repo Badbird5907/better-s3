@@ -1,15 +1,17 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
+import { db } from "@app/db/client";
+import { fileKeys } from "@app/db/schema";
 import { generateSignedUploadUrl } from "@app/shared/signing";
 
-import { env } from "../../../../env";
+import { env } from "@/env";
 import {
-  extractApiKeyFromRequest,
-  getEnvironment,
-  getProjectWithOrg,
-  validateApiKey,
-} from "../../../../lib/api-key-middleware";
+  authenticateRequest,
+  jsonError,
+  validateEnvironmentAccess,
+  validateProjectAccess,
+} from "@/lib/api-key-middleware";
 
 const schema = z.object({
   projectId: z.string(),
@@ -24,65 +26,33 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const apiKey = extractApiKeyFromRequest(request);
+  const authResult = await authenticateRequest(request);
+  if (authResult instanceof Response) return authResult;
 
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({
-        error: "Unauthorized",
-        message:
-          "API key is required. Use Authorization: Bearer <key> or X-API-Key header.",
-      }),
-      {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      },
+  if (authResult.type !== "apiKey" || !authResult.rawApiKey) {
+    return jsonError(
+      "Unauthorized",
+      "API key is required for upload. Use Authorization: Bearer <key> or X-API-Key header.",
+      401,
     );
   }
 
-  const context = await validateApiKey(apiKey);
-
-  if (!context) {
-    return new Response(
-      JSON.stringify({
-        error: "Unauthorized",
-        message: "Invalid or expired API key.",
-      }),
-      {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
+  const apiKey = authResult.rawApiKey;
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return new Response(
-      JSON.stringify({
-        error: "Bad Request",
-        message: "Invalid JSON body",
-      }),
-      {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    return jsonError("Bad Request", "Invalid JSON body.", 400);
   }
 
   const result = schema.safeParse(body);
   if (!result.success) {
-    return new Response(
-      JSON.stringify({
-        error: "Bad Request",
-        message: "Invalid request body",
-        details: result.error.issues,
-      }),
-      {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      },
+    return jsonError(
+      "Bad Request",
+      "Invalid request body.",
+      400,
+      result.error.issues,
     );
   }
 
@@ -95,66 +65,47 @@ export async function POST(request: Request) {
     mimeType,
     hash,
     isPublic,
+    metadata,
   } = result.data;
 
-  if (projectId !== context.projectId) {
-    return new Response(
-      JSON.stringify({
-        error: "Forbidden",
-        message: "API key does not have access to this project",
-      }),
-      {
-        status: 403,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
+  const project = await validateProjectAccess(authResult, projectId);
+  if (project instanceof Response) return project;
 
-  const projectResult = await getProjectWithOrg(
-    projectId,
-    context.organizationId,
-  );
-  if (!projectResult) {
-    return new Response(
-      JSON.stringify({
-        error: "Not Found",
-        message: "Project not found",
-      }),
-      {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
-
-  const environment = await getEnvironment(environmentId, projectId);
-  if (!environment) {
-    return new Response(
-      JSON.stringify({
-        error: "Not Found",
-        message: "Environment not found or does not belong to this project",
-      }),
-      {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
+  const environment = await validateEnvironmentAccess(environmentId, projectId);
+  if (environment instanceof Response) return environment;
 
   try {
     const fileKeyId = nanoid(16);
+    const resolvedIsPublic = isPublic ?? project.defaultFileAccess === "public";
 
-    const resolvedIsPublic =
-      isPublic ?? projectResult.project.defaultFileAccess === "public";
+    const [newFileKey] = await db
+      .insert(fileKeys)
+      .values({
+        id: fileKeyId,
+        accessKey,
+        fileName,
+        projectId,
+        environmentId,
+        fileId: null,
+        isPublic: resolvedIsPublic,
+        metadata: metadata ?? {},
+        claimedSize: size,
+        claimedMimeType: mimeType ?? null,
+        claimedHash: hash ?? null,
+        status: "pending",
+      })
+      .returning();
+
+    if (!newFileKey) {
+      throw new Error("Failed to create file key record");
+    }
 
     const keyId = apiKey.substring(0, 11);
-
-    const isDevelopment = env.NODE_ENV === "development";
-    const protocol = isDevelopment ? "http" : "https";
+    const protocol = env.NODE_ENV === "development" ? "http" : "https";
 
     const uploadUrl = await generateSignedUploadUrl(
       env.WORKER_DOMAIN,
-      projectResult.project.slug,
+      project.slug,
       {
         environmentId,
         fileKeyId,
@@ -165,7 +116,7 @@ export async function POST(request: Request) {
         mimeType,
         isPublic: resolvedIsPublic,
         keyId,
-        expiresIn: 3600, // 1 hour expiry
+        expiresIn: 3600,
         protocol,
       },
       apiKey,
@@ -186,15 +137,10 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("Error creating upload URL:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Internal Server Error",
-        message: "Failed to create upload URL",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      },
+    return jsonError(
+      "Internal Server Error",
+      "Failed to create upload URL.",
+      500,
     );
   }
 }

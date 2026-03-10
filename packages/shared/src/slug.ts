@@ -118,7 +118,7 @@ export function validateProjectSlug(slug: string): {
  */
 export function isReservedSlug(slug: string): boolean {
   const firstPart = slug.split("-")[0];
-  return RESERVED_SLUGS.includes(firstPart as (typeof RESERVED_SLUGS)[number]);
+  return (RESERVED_SLUGS as readonly string[]).includes(firstPart ?? "");
 }
 
 /**

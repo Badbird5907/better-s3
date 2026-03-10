@@ -4,7 +4,7 @@ import { baseConfig } from "@app/eslint-config/base";
 
 export default defineConfig(
   {
-    ignores: ["dist/**"],
+    ignores: ["dist/**", "seed-analytics.ts"],
   },
   baseConfig,
 );

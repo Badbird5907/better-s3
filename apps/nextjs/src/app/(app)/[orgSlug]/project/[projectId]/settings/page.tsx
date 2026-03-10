@@ -8,6 +8,7 @@ import { Skeleton } from "@app/ui/components/skeleton";
 
 import {
   ApiKeysList,
+  EnvironmentsList,
   ProjectGeneralSettings,
 } from "@/components/project-settings";
 import { useOrganization } from "@/hooks/use-organization";
@@ -63,7 +64,13 @@ export default function ProjectSettingsPage({
           }}
           organizationId={organizationId}
         />
-        <ApiKeysList projectId={projectId} organizationId={organizationId} />
+        <div className="flex w-full flex-row gap-6">
+          <EnvironmentsList
+            projectId={projectId}
+            organizationId={organizationId}
+          />
+          <ApiKeysList projectId={projectId} organizationId={organizationId} />
+        </div>
       </div>
     </>
   );

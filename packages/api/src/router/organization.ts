@@ -50,7 +50,7 @@ export const organizationRouter = {
   /**
    * Get the current user's role in the specified organization
    */
-  getMyRole: organizationProcedure.query(async ({ ctx }) => {
+  getMyRole: organizationProcedure.query(({ ctx }) => {
     return {
       role: ctx.membership.role,
       memberId: ctx.membership.id,
