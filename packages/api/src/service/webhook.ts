@@ -35,11 +35,22 @@ function environmentAllowsEvent(
   environment: WebhookEnvironmentConfig,
   eventType: string,
 ) {
-  if (environment.type !== "production") return false;
-  if (!environment.webhookEnabled) return false;
-  if (!environment.webhookUrl || !environment.webhookSecret) return false;
-  if (environment.webhookEvents.length === 0) return true;
-  return environment.webhookEvents.includes(eventType);
+  // if (environment.type !== "production") return false;
+  if (!environment.webhookEnabled) {
+    console.log("webhook not enabled", environment.id);
+    return false;
+  }
+  if (!environment.webhookUrl || !environment.webhookSecret) {
+    console.log("webhook url or secret not set", environment.id);
+    return false;
+  }
+  if (environment.webhookEvents.length === 0) {
+    console.log("webhook events not set", environment.id);
+    return true;
+  }
+  const allowed = environment.webhookEvents.includes(eventType);
+  console.log("event allowed", eventType, allowed);
+  return allowed;
 }
 
 
@@ -53,6 +64,7 @@ export async function enqueueUploadWebhookEvent(
     maxAttempts?: number;
   },
 ) {
+  console.log("enqueueUploadWebhookEvent", input);
   const env = await db.query.projectEnvironments.findFirst({
     where: eq(projectEnvironments.id, input.environmentId),
     columns: {
@@ -66,6 +78,7 @@ export async function enqueueUploadWebhookEvent(
   });
 
   if (!env) {
+    console.log("environment not found", input.environmentId);
     return { enqueued: false as const, reason: "environment_not_found" as const };
   }
 
@@ -77,17 +90,21 @@ export async function enqueueUploadWebhookEvent(
   };
 
   if (!environmentAllowsEvent(normalizedEnvironment, input.event.type)) {
+    console.log("event not allowed", input.event.type);
     return { enqueued: false as const, reason: "not_configured" as const };
   }
 
   // Preserve local dev flow (SSE/polling) without requiring queue infra.
-  if (process.env.NODE_ENV !== "production") {
-    return { enqueued: false as const, reason: "local_noop" as const };
-  }
+  // if (process.env.NODE_ENV !== "production") {
+  //   return { enqueued: false as const, reason: "local_noop" as const };
+  // }
 
   if (process.env.WEBHOOK_DELIVERY_ENABLED === "false") {
+    console.log("delivery disabled");
     return { enqueued: false as const, reason: "delivery_disabled" as const };
   }
+
+  console.log("enqueueing webhook event", input);
 
   await send(
     WEBHOOK_TOPIC,

@@ -60,7 +60,7 @@ export const POST = handleCallback(async (rawQueueMessage, metadata) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "User-Agent": "better-s3-webhooks/1.0",
+          "User-Agent": "silo-webhooks/1.0",
           "X-Silo-Webhook-Id": queueMessage.idempotencyKey,
           "X-Silo-Event-Type": queueMessage.event.type,
           "X-Silo-Event-Version": String(queueMessage.event.version),

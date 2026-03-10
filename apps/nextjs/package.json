@@ -8,9 +8,9 @@
     "dev": "pnpm with-env next dev",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint",
-    "start": "pnpm with-env next start",
-    "typecheck": "tsc --noEmit",
-    "with-env": "dotenv -e ../../.env --"
+    "start": "pnpm with-env `next start",
+    "typecheck": "tsc --noEm`it",
+    "with-env": "dotenv -e ../../.env.local --"
   },
   "dependencies": {
     "@better-auth/sso": "^1.4.17",

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Layers, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Layers, MoreHorizontal, Pencil, Trash2, WebhookIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@silo/ui/components/badge";
@@ -51,6 +51,8 @@ import {
 
 import { useTRPC } from "@/trpc/react";
 import { CreateEnvironmentDialog } from "./create-environment-dialog";
+import { ManageEnvironmentWebhookDialog } from "./manage-environment-webhook-dialog";
+import { Tooltip,TooltipContent,TooltipTrigger } from "@silo/ui/components/tooltip";
 
 interface EnvironmentsListProps {
   projectId: string;
@@ -88,6 +90,14 @@ export function EnvironmentsList({
   const [editType, setEditType] = React.useState<
     "development" | "staging" | "production"
   >("development");
+  const [webhookTarget, setWebhookTarget] = React.useState<{
+    id: string;
+    name: string;
+    webhookEnabled: boolean;
+    webhookUrl: string | null;
+    webhookEvents: ("upload.completed" | "upload.failed")[];
+    webhookSecretSet: boolean;
+  } | null>(null);
 
   const environmentsQuery = useQuery(
     trpc.environment.list.queryOptions(
@@ -219,7 +229,20 @@ export function EnvironmentsList({
               <TableBody>
                 {environments.map((env) => (
                   <TableRow key={env.id}>
-                    <TableCell className="font-medium">{env.name}</TableCell>
+                    <TableCell className="font-medium">
+                      {env.name}
+                      {env.webhookEnabled && !env.webhookSecretSet ? (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge className="ml-2 border-yellow-500 text-yellow-500 bg-yellow-500/10">!</Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="text-center">
+                            Webhook secret not set.<br />
+                            Webhook delivery will not work until a secret is set.
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : null}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={getTypeBadgeVariant(env.type)}>
                         {env.type}
@@ -262,6 +285,25 @@ export function EnvironmentsList({
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() =>
+                              setWebhookTarget({
+                                id: env.id,
+                                name: env.name,
+                                webhookEnabled: env.webhookEnabled,
+                                webhookUrl: env.webhookUrl,
+                                webhookEvents:
+                                  env.webhookEvents.length > 0
+                                    ? env.webhookEvents
+                                    : ["upload.completed", "upload.failed"],
+                                webhookSecretSet: env.webhookSecretSet,
+                              })
+                            }
+                          >
+                            <WebhookIcon className="mr-2 h-4 w-4" />
+                            Manage Webhook
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() =>
                               setDeleteTarget({ id: env.id, name: env.name })
                             }
                             className="text-red-600"
@@ -280,7 +322,6 @@ export function EnvironmentsList({
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
@@ -312,7 +353,6 @@ export function EnvironmentsList({
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
       <Dialog
         open={!!editTarget}
         onOpenChange={(open) => {
@@ -374,6 +414,16 @@ export function EnvironmentsList({
           </form>
         </DialogContent>
       </Dialog>
+
+      <ManageEnvironmentWebhookDialog
+        open={!!webhookTarget}
+        onOpenChange={(open) => {
+          if (!open) setWebhookTarget(null);
+        }}
+        organizationId={organizationId}
+        environment={webhookTarget}
+        onUpdated={() => void environmentsQuery.refetch()}
+      />
     </>
   );
 }

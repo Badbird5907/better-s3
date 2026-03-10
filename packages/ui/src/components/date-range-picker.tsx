@@ -1,34 +1,34 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { format } from "date-fns"
-import { CalendarIcon, Clock } from "lucide-react"
-import type { DateRange } from "react-day-picker"
+import type { DateRange } from "react-day-picker";
+import * as React from "react";
+import { format } from "date-fns";
+import { CalendarIcon, Clock } from "lucide-react";
 
-import { cn } from "@silo/ui/lib/utils"
-import { Button } from "@silo/ui/components/button"
-import { Calendar } from "@silo/ui/components/calendar"
+import { Button } from "@silo/ui/components/button";
+import { Calendar } from "@silo/ui/components/calendar";
+import { Input } from "@silo/ui/components/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@silo/ui/components/popover"
-import { Input } from "@silo/ui/components/input"
+} from "@silo/ui/components/popover";
+import { cn } from "@silo/ui/lib/utils";
 
 interface TimeState {
-  hour: string
-  minute: string
-  period: "AM" | "PM"
+  hour: string;
+  minute: string;
+  period: "AM" | "PM";
 }
 
 interface DateRangePickerProps {
-  value?: DateRange
-  onChange?: (range: DateRange | undefined) => void
-  defaultMonth?: Date
-  timePicker?: boolean
-  placeholder?: string
-  disabled?: boolean
-  className?: string
+  value?: DateRange;
+  onChange?: (range: DateRange | undefined) => void;
+  defaultMonth?: Date;
+  timePicker?: boolean;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
 }
 
 function TimeInput({
@@ -36,60 +36,60 @@ function TimeInput({
   time,
   onTimeChange,
 }: {
-  label: string
-  time: TimeState
-  onTimeChange: (time: TimeState) => void
+  label: string;
+  time: TimeState;
+  onTimeChange: (time: TimeState) => void;
 }) {
-  const [hour, setHour] = React.useState(time.hour)
-  const [minute, setMinute] = React.useState(time.minute)
+  const [hour, setHour] = React.useState(time.hour);
+  const [minute, setMinute] = React.useState(time.minute);
 
   const handleHourChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, "").slice(0, 2)
-    setHour(val)
-  }
+    const val = e.target.value.replace(/\D/g, "").slice(0, 2);
+    setHour(val);
+  };
 
   const handleHourBlur = () => {
-    let num = parseInt(hour, 10)
+    let num = parseInt(hour, 10);
     if (isNaN(num) || num < 1) {
-      num = 12
+      num = 12;
     } else if (num > 12) {
-      num = 12
+      num = 12;
     }
-    const padded = String(num).padStart(2, "0")
-    setHour(padded)
-    onTimeChange({ ...time, hour: padded })
-  }
+    const padded = String(num).padStart(2, "0");
+    setHour(padded);
+    onTimeChange({ ...time, hour: padded });
+  };
 
   const handleMinuteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, "").slice(0, 2)
-    setMinute(val)
-  }
+    const val = e.target.value.replace(/\D/g, "").slice(0, 2);
+    setMinute(val);
+  };
 
   const handleMinuteBlur = () => {
-    let num = parseInt(minute, 10)
+    let num = parseInt(minute, 10);
     if (isNaN(num) || num < 0) {
-      num = 0
+      num = 0;
     } else if (num > 59) {
-      num = 59
+      num = 59;
     }
-    const padded = String(num).padStart(2, "0")
-    setMinute(padded)
-    onTimeChange({ ...time, minute: padded })
-  }
+    const padded = String(num).padStart(2, "0");
+    setMinute(padded);
+    onTimeChange({ ...time, minute: padded });
+  };
 
   const handlePeriodChange = () => {
-    const newPeriod = time.period === "AM" ? "PM" : "AM"
-    onTimeChange({ ...time, period: newPeriod })
-  }
+    const newPeriod = time.period === "AM" ? "PM" : "AM";
+    onTimeChange({ ...time, period: newPeriod });
+  };
 
   React.useEffect(() => {
-    setHour(time.hour)
-    setMinute(time.minute)
-  }, [time.hour, time.minute])
+    setHour(time.hour);
+    setMinute(time.minute);
+  }, [time.hour, time.minute]);
 
   return (
     <div className="space-y-2">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="text-muted-foreground text-xs font-medium">{label}</span>
       <div className="flex items-center gap-1.5">
         <Input
           type="text"
@@ -115,13 +115,13 @@ function TimeInput({
         <button
           type="button"
           onClick={handlePeriodChange}
-          className="flex h-9 w-12 items-center justify-center rounded-md border border-input bg-background text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="border-input bg-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex h-9 w-12 items-center justify-center rounded-md border text-xs font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none"
         >
           {time.period}
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 export function DateRangePicker({
@@ -133,126 +133,126 @@ export function DateRangePicker({
   disabled = false,
   className,
 }: DateRangePickerProps) {
-  const [range, setRange] = React.useState<DateRange | undefined>(value)
+  const [range, setRange] = React.useState<DateRange | undefined>(value);
   const [startTime, setStartTime] = React.useState<TimeState>(() => {
     if (value?.from) {
-      const hours = value.from.getHours()
+      const hours = value.from.getHours();
       return {
         hour: format(value.from, "hh"),
         minute: format(value.from, "mm"),
         period: hours >= 12 ? "PM" : "AM",
-      }
+      };
     }
-    return { hour: "12", minute: "00", period: "AM" }
-  })
+    return { hour: "12", minute: "00", period: "AM" };
+  });
   const [endTime, setEndTime] = React.useState<TimeState>(() => {
     if (value?.to) {
-      const hours = value.to.getHours()
+      const hours = value.to.getHours();
       return {
         hour: format(value.to, "hh"),
         minute: format(value.to, "mm"),
         period: hours >= 12 ? "PM" : "AM",
-      }
+      };
     }
-    return { hour: "11", minute: "59", period: "PM" }
-  })
+    return { hour: "11", minute: "59", period: "PM" };
+  });
 
   React.useEffect(() => {
     if (value) {
-      setRange(value)
+      setRange(value);
       if (value.from) {
-        const hours = value.from.getHours()
+        const hours = value.from.getHours();
         setStartTime({
           hour: format(value.from, "hh"),
           minute: format(value.from, "mm"),
           period: hours >= 12 ? "PM" : "AM",
-        })
+        });
       }
       if (value.to) {
-        const hours = value.to.getHours()
+        const hours = value.to.getHours();
         setEndTime({
           hour: format(value.to, "hh"),
           minute: format(value.to, "mm"),
           period: hours >= 12 ? "PM" : "AM",
-        })
+        });
       }
     }
-  }, [value])
+  }, [value]);
 
   const applyTimeToDate = (
     date: Date | undefined,
-    time: TimeState
+    time: TimeState,
   ): Date | undefined => {
-    if (!date) return undefined
-    const result = new Date(date)
-    let hourNum = parseInt(time.hour, 10)
+    if (!date) return undefined;
+    const result = new Date(date);
+    let hourNum = parseInt(time.hour, 10);
     if (time.period === "PM" && hourNum !== 12) {
-      hourNum += 12
+      hourNum += 12;
     } else if (time.period === "AM" && hourNum === 12) {
-      hourNum = 0
+      hourNum = 0;
     }
-    result.setHours(hourNum, parseInt(time.minute, 10), 0, 0)
-    return result
-  }
+    result.setHours(hourNum, parseInt(time.minute, 10), 0, 0);
+    return result;
+  };
 
   const updateRange = React.useCallback(
     (
       newRange: DateRange | undefined,
       newStartTime?: TimeState,
-      newEndTime?: TimeState
+      newEndTime?: TimeState,
     ) => {
-      const st = newStartTime ?? startTime
-      const et = newEndTime ?? endTime
+      const st = newStartTime ?? startTime;
+      const et = newEndTime ?? endTime;
 
       if (!newRange) {
-        onChange?.(undefined)
-        return
+        onChange?.(undefined);
+        return;
       }
 
       if (timePicker) {
         const updatedRange: DateRange = {
           from: applyTimeToDate(newRange.from, st),
           to: applyTimeToDate(newRange.to, et),
-        }
-        onChange?.(updatedRange)
+        };
+        onChange?.(updatedRange);
       } else {
-        onChange?.(newRange)
+        onChange?.(newRange);
       }
     },
-    [startTime, endTime, timePicker, onChange]
-  )
+    [startTime, endTime, timePicker, onChange],
+  );
 
   const handleRangeSelect = (selectedRange: DateRange | undefined) => {
-    setRange(selectedRange)
-    updateRange(selectedRange)
-  }
+    setRange(selectedRange);
+    updateRange(selectedRange);
+  };
 
   const handleStartTimeChange = (newTime: TimeState) => {
-    setStartTime(newTime)
-    updateRange(range, newTime, endTime)
-  }
+    setStartTime(newTime);
+    updateRange(range, newTime, endTime);
+  };
 
   const handleEndTimeChange = (newTime: TimeState) => {
-    setEndTime(newTime)
-    updateRange(range, startTime, newTime)
-  }
+    setEndTime(newTime);
+    updateRange(range, startTime, newTime);
+  };
 
   const formatDisplayValue = () => {
-    if (!range?.from) return placeholder
+    if (!range?.from) return placeholder;
 
     const formatDateTime = (date: Date, time: TimeState) => {
       if (timePicker) {
-        return `${format(date, "MMM d, yyyy")} ${time.hour}:${time.minute} ${time.period}`
+        return `${format(date, "MMM d, yyyy")} ${time.hour}:${time.minute} ${time.period}`;
       }
-      return format(date, "MMM d, yyyy")
-    }
+      return format(date, "MMM d, yyyy");
+    };
 
     if (!range.to) {
-      return formatDateTime(range.from, startTime)
+      return formatDateTime(range.from, startTime);
     }
 
-    return `${formatDateTime(range.from, startTime)} - ${formatDateTime(range.to, endTime)}`
-  }
+    return `${formatDateTime(range.from, startTime)} - ${formatDateTime(range.to, endTime)}`;
+  };
 
   return (
     <Popover>
@@ -263,7 +263,7 @@ export function DateRangePicker({
           className={cn(
             "w-full justify-start text-left font-normal",
             !range && "text-muted-foreground",
-            className
+            className,
           )}
         >
           <CalendarIcon className="mr-2 size-4" />
@@ -280,9 +280,9 @@ export function DateRangePicker({
           autoFocus
         />
         {timePicker && (
-          <div className="border-t border-border p-3">
-            <div className="flex items-center gap-2 mb-3">
-              <Clock className="size-4 text-muted-foreground" />
+          <div className="border-border border-t p-3">
+            <div className="mb-3 flex items-center gap-2">
+              <Clock className="text-muted-foreground size-4" />
               <span className="text-sm font-medium">Time</span>
             </div>
             <div className="flex gap-6">
@@ -301,5 +301,5 @@ export function DateRangePicker({
         )}
       </PopoverContent>
     </Popover>
-  )
+  );
 }
