@@ -24,6 +24,7 @@ interface TimeState {
 interface DateRangePickerProps {
   value?: DateRange
   onChange?: (range: DateRange | undefined) => void
+  defaultMonth?: Date
   timePicker?: boolean
   placeholder?: string
   disabled?: boolean
@@ -126,6 +127,7 @@ function TimeInput({
 export function DateRangePicker({
   value,
   onChange,
+  defaultMonth,
   timePicker = false,
   placeholder = "Pick a date range",
   disabled = false,
@@ -273,6 +275,7 @@ export function DateRangePicker({
           mode="range"
           selected={range}
           onSelect={handleRangeSelect}
+          defaultMonth={defaultMonth}
           numberOfMonths={2}
           autoFocus
         />

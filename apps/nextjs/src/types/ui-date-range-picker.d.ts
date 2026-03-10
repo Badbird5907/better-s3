@@ -4,6 +4,7 @@ declare module "@app/ui/components/date-range-picker" {
   interface DateRangePickerProps {
     value?: { from?: Date; to?: Date };
     onChange?: (range: { from?: Date; to?: Date } | undefined) => void;
+    defaultMonth?: Date;
     timePicker?: boolean;
     placeholder?: string;
     disabled?: boolean;

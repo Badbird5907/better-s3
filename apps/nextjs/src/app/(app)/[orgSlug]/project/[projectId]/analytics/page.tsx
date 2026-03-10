@@ -163,6 +163,7 @@ export default function AnalyticsPage({ params }: AnalyticsPageProps) {
             <DateRangePicker
               className="w-[320px]"
               value={dateRange}
+              defaultMonth={dateRange.from}
               onChange={(range: PickerDateRange | undefined) => {
                 if (!range?.from) {
                   return;
