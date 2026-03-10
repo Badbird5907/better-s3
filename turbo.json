@@ -55,6 +55,8 @@
       "UPSTASH_REDIS_REST_TOKEN",
       "WORKER_URL",
       "WORKER_CALLBACK_SECRET",
+      "WEBHOOK_DELIVERY_ENABLED",
+      "DEV_UPLOAD_SSE_ENABLED"
     ],
     "globalPassThroughEnv": [
       "NODE_ENV",

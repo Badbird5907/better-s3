@@ -25,7 +25,7 @@ export interface SignedUploadUrlParams {
   hash?: string; // optional - if provided, worker validates against actual
   mimeType?: string; // optional - if provided, worker validates against actual
   expiresIn?: number; // seconds, optional - no expiry if omitted
-  keyId: string; // API key prefix (sk-bs3-xxxx) to identify which key to look up
+  keyId: string; // API key prefix (sk-silo-xxxx) to identify which key to look up
   isPublic?: boolean; // optional - whether file should be publicly accessible
   protocol?: "http" | "https"; // optional - defaults to https
 }
@@ -66,7 +66,7 @@ export type ParsedSignedUrl = ParsedSignedUploadUrl | ParsedSignedDownloadUrl;
  * Derive a signing secret from an API key and master signing secret.
  * This allows the server to verify signatures without storing the original API key.
  *
- * @param apiKey - The full API key (e.g., "sk-bs3-xxxxx...")
+ * @param apiKey - The full API key (e.g., "sk-silo-xxxxx...")
  * @param masterSigningSecret - The server's SIGNING_SECRET environment variable
  * @returns The derived signing secret to use for HMAC signatures
  */

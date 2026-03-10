@@ -150,7 +150,7 @@ export const apiKeyRouter = {
         }
       }
 
-      const fullKey = `sk-bs3-${nanoid(32)}`;
+      const fullKey = `sk-silo-${nanoid(32)}`;
       const keyPrefix = fullKey.substring(0, 11);
       const keyHash = await hashApiKey(fullKey);
 

@@ -11,8 +11,10 @@ import {
   deleteEnvironment,
   getEnvironmentById,
   listEnvironments,
+  rotateEnvironmentWebhookSecret,
   scheduleEnvironmentObjectDeletion,
   updateEnvironment,
+  updateEnvironmentWebhookConfig,
 } from "../service/environment";
 import { organizationProcedure } from "../trpc";
 
@@ -37,6 +39,20 @@ async function validateProjectAccess(
   }
 
   return project;
+}
+
+const webhookEventsSchema = z.enum(["upload.completed", "upload.failed"]);
+
+function toPublicEnvironment<
+  T extends {
+    webhookSecret?: string | null;
+  },
+>(environment: T) {
+  const { webhookSecret, ...rest } = environment;
+  return {
+    ...rest,
+    webhookSecretSet: !!webhookSecret,
+  };
 }
 
 /** Validate that an environment belongs to a project owned by the caller's organization. */
@@ -73,7 +89,7 @@ export const environmentRouter = {
       await validateProjectAccess(ctx.db, input.projectId, ctx.organizationId);
       const environments = await listEnvironments(ctx.db, input.projectId);
       return environments.map((environment) => ({
-        ...environment,
+        ...toPublicEnvironment(environment),
         isPersonalDev:
           environment.type === "development" && !!environment.ownerUserId,
       }));
@@ -82,7 +98,12 @@ export const environmentRouter = {
   getById: organizationProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      return validateEnvironmentAccess(ctx.db, input.id, ctx.organizationId);
+      const environment = await validateEnvironmentAccess(
+        ctx.db,
+        input.id,
+        ctx.organizationId,
+      );
+      return toPublicEnvironment(environment);
     }),
 
   create: organizationProcedure
@@ -135,11 +156,59 @@ export const environmentRouter = {
     .mutation(async ({ ctx, input }) => {
       await validateEnvironmentAccess(ctx.db, input.id, ctx.organizationId);
 
-      return updateEnvironment(ctx.db, {
+      const updated = await updateEnvironment(ctx.db, {
         id: input.id,
         name: input.name,
         type: input.type,
       });
+      return updated ? toPublicEnvironment(updated) : updated;
+    }),
+
+  updateWebhook: organizationProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        enabled: z.boolean().optional(),
+        webhookUrl: z.string().url().nullable().optional(),
+        webhookEvents: z.array(webhookEventsSchema).min(1).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await validateEnvironmentAccess(ctx.db, input.id, ctx.organizationId);
+      const updated = await updateEnvironmentWebhookConfig(ctx.db, {
+        environmentId: input.id,
+        enabled: input.enabled,
+        webhookUrl: input.webhookUrl,
+        webhookEvents: input.webhookEvents,
+      });
+
+      if (!updated) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Environment not found",
+        });
+      }
+
+      return toPublicEnvironment(updated);
+    }),
+
+  rotateWebhookSecret: organizationProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await validateEnvironmentAccess(ctx.db, input.id, ctx.organizationId);
+      const result = await rotateEnvironmentWebhookSecret(ctx.db, input.id);
+
+      if (!result.environment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Environment not found",
+        });
+      }
+
+      return {
+        ...toPublicEnvironment(result.environment),
+        webhookSecret: result.secret,
+      };
     }),
 
   delete: organizationProcedure

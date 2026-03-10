@@ -50,7 +50,7 @@ function getInitials(name: string) {
 }
 
 function formatKeyPrefix(prefix: string) {
-  // Show prefix with masked suffix: sk-bs3-xxxx****
+  // Show prefix with masked suffix: sk-silo-xxxx****
   return `${prefix}${"*".repeat(8)}`;
 }
 

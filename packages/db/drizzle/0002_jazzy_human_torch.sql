@@ -1,1 +1,0 @@
-ALTER TABLE "files" ALTER COLUMN "hash" DROP NOT NULL;

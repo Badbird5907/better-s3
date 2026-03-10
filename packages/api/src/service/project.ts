@@ -1,8 +1,6 @@
-import type { db as dbClient } from "@silo/db/client";
+import type { Db } from "@silo/db/client";
 import { eq } from "@silo/db";
 import { projectEnvironments, projects } from "@silo/db/schema";
-
-type Db = typeof dbClient;
 
 const DEFAULT_ENVIRONMENTS = [
   { name: "Production", slug: "production", type: "production" as const },

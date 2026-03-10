@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { markUploadAsFailed, UploadFailureError } from "@silo/api/services";
+import {
+  enqueueUploadWebhookEvent,
+  markUploadAsFailed,
+  UploadFailureError,
+} from "@silo/api/services";
 import { eq, sql } from "@silo/db";
 import { db } from "@silo/db/client";
 import {
@@ -12,6 +16,7 @@ import {
   usageEvents,
 } from "@silo/db/schema";
 import { publishMessage } from "@silo/redis";
+import { createUploadEventEnvelope } from "@silo/shared";
 
 import { env } from "../../../../env";
 
@@ -232,21 +237,37 @@ export async function POST(request: Request) {
         );
       }
 
-      // Publish message for real-time updates (non-blocking)
+      const uploadCompletedEvent = createUploadEventEnvelope(
+        "upload.completed",
+        {
+          environmentId: data.environmentId,
+          projectId: data.projectId,
+          fileKeyId: fileKey.id,
+          accessKey: fileKey.accessKey,
+          fileId: file.id,
+          fileName: fileKey.fileName,
+          hash: file.hash,
+          mimeType: file.mimeType,
+          size: file.size,
+        },
+        `upload.completed:${fileKey.id}`,
+      );
+
       try {
-        await publishMessage(`upload:${data.fileKeyId}`, {
-          type: "upload-completed",
-          data: {
-            fileKeyId: fileKey.id,
-            accessKey: fileKey.accessKey,
-            fileId: file.id,
-            hash: file.hash,
-            mimeType: file.mimeType,
-            size: file.size,
-          },
-        });
+        await publishMessage(`upload:${data.fileKeyId}`, uploadCompletedEvent);
       } catch (pubError) {
         console.error("Failed to publish upload completion message:", pubError);
+      }
+
+      try {
+        await enqueueUploadWebhookEvent(db, {
+          environmentId: data.environmentId,
+          projectId: data.projectId,
+          event: uploadCompletedEvent,
+          idempotencyKey: uploadCompletedEvent.id,
+        });
+      } catch (enqueueError) {
+        console.error("Failed to enqueue upload completion webhook:", enqueueError);
       }
 
       void trackUsageEvent(

@@ -1,8 +1,9 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
   date,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -51,6 +52,10 @@ export const projectEnvironmentTypes = pgEnum("project_environment_types", [
   "staging",
   "production",
 ]);
+export const webhookEventTypes = pgEnum("webhook_event_types", [
+  "upload.completed",
+  "upload.failed",
+]);
 export const projectEnvironments = pgTable("project_environments", {
   id: text("id")
     .primaryKey()
@@ -64,6 +69,13 @@ export const projectEnvironments = pgTable("project_environments", {
   ownerUserId: text("owner_user_id").references(() => auth.users.id, {
     onDelete: "set null",
   }),
+  webhookEnabled: boolean("webhook_enabled").notNull().default(false),
+  webhookUrl: text("webhook_url"),
+  webhookSecret: text("webhook_secret"),
+  webhookEvents: webhookEventTypes("webhook_events")
+    .array()
+    .notNull()
+    .default(sql`'{}'::webhook_event_types[]`),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -197,7 +209,7 @@ export const apiKeys = pgTable("api_keys", {
     .primaryKey()
     .$defaultFn(() => nanoid(16)),
   name: text("name").notNull(), // user-provided name for the key
-  keyPrefix: text("key_prefix").notNull(), // first 11 chars for display (sk-bs3-xxxx)
+  keyPrefix: text("key_prefix").notNull(), // first 11 chars for display (sk-silo-xxxx)
   keyHash: text("key_hash").notNull().unique(), // SHA-256 hash of full key
   projectId: text("project_id")
     .references(() => projects.id, { onDelete: "cascade" })
@@ -263,6 +275,47 @@ export const usageEventTypes = pgEnum("usage_event_types", [
   "upload_failed",
   "download",
 ]);
+
+export const webhookAttemptStatus = pgEnum("webhook_attempt_status", [
+  "success",
+  "retry",
+  "failed",
+]);
+
+export const webhookAttempts = pgTable(
+  "webhook_attempts",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    webhookJobId: text("webhook_job_id"),
+    eventId: text("event_id").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    queueMessageId: text("queue_message_id"),
+    environmentId: text("environment_id")
+      .references(() => projectEnvironments.id, { onDelete: "cascade" })
+      .notNull(),
+    projectId: text("project_id")
+      .references(() => projects.id, { onDelete: "cascade" })
+      .notNull(),
+    attemptNumber: integer("attempt_number").notNull(),
+    status: webhookAttemptStatus("status").notNull(),
+    requestUrl: text("request_url").notNull(),
+    responseStatus: integer("response_status"),
+    responseBody: text("response_body"),
+    error: text("error"),
+    latencyMs: integer("latency_ms"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("webhook_attempts_event_idx").on(table.eventId),
+    index("webhook_attempts_idempotency_idx").on(table.idempotencyKey),
+    uniqueIndex("webhook_attempts_event_attempt_idx").on(
+      table.eventId,
+      table.attemptNumber,
+    ),
+  ],
+);
 
 // Analytics: Raw usage events
 export const usageEvents = pgTable("usage_events", {
@@ -369,6 +422,17 @@ export const usageDailyRelations = relations(usageDaily, ({ one }) => ({
   environment: one(projectEnvironments, {
     fields: [usageDaily.environmentId],
     references: [projectEnvironments.id],
+  }),
+}));
+
+export const webhookAttemptsRelations = relations(webhookAttempts, ({ one }) => ({
+  environment: one(projectEnvironments, {
+    fields: [webhookAttempts.environmentId],
+    references: [projectEnvironments.id],
+  }),
+  project: one(projects, {
+    fields: [webhookAttempts.projectId],
+    references: [projects.id],
   }),
 }));
 

@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./events": "./src/events.ts",
     "./signing": "./src/signing.ts",
     "./slug": "./src/slug.ts"
   },
@@ -21,6 +22,7 @@
     "@silo/eslint-config": "workspace:*",
     "@silo/prettier-config": "workspace:*",
     "@silo/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"

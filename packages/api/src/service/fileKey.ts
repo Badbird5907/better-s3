@@ -1,9 +1,9 @@
-import type { db as dbClient } from "@silo/db/client";
+import type { Db } from "@silo/db/client";
 import { and, eq, sql } from "@silo/db";
 import { fileKeys, projects, usageDaily, usageEvents } from "@silo/db/schema";
 import { publishMessage } from "@silo/redis";
-
-type Db = typeof dbClient;
+import { createUploadEventEnvelope } from "@silo/shared";
+import { enqueueUploadWebhookEvent } from "./webhook";
 
 export class UploadFailureError extends Error {
   public readonly code: "NOT_FOUND" | "ALREADY_COMPLETED" | "ALREADY_FAILED";
@@ -176,20 +176,38 @@ export async function markUploadAsFailed(
     .where(eq(fileKeys.id, opts.fileKeyId))
     .returning();
 
-  // Publish real-time notification (non-blocking)
+  // this is the message
+  const uploadFailedEvent = createUploadEventEnvelope(
+    "upload.failed",
+    {
+      environmentId: opts.environmentId,
+      projectId: opts.projectId,
+      fileKeyId: opts.fileKeyId,
+      error: opts.error ?? "Upload failed",
+    },
+    `upload.failed:${opts.fileKeyId}`,
+  );
+
+  // publish to redis
   try {
-    await publishMessage(`upload:${opts.fileKeyId}`, {
-      type: "upload-failed",
-      data: {
-        fileKeyId: opts.fileKeyId,
-        error: opts.error ?? "Upload failed",
-      },
-    });
+    await publishMessage(`upload:${opts.fileKeyId}`, uploadFailedEvent);
   } catch (pubError) {
     console.error("Failed to publish upload failure message:", pubError);
   }
 
-  // Track usage analytics (non-blocking)
+  try {
+    // publish webhook
+    await enqueueUploadWebhookEvent(db, {
+      environmentId: opts.environmentId,
+      projectId: opts.projectId,
+      event: uploadFailedEvent,
+      idempotencyKey: uploadFailedEvent.id,
+    });
+  } catch (enqueueError) {
+    console.error("Failed to enqueue upload failure webhook:", enqueueError);
+  }
+
+  // track usage analytics
   void trackUsageEvent(db, "upload_failed", opts.projectId, opts.environmentId);
 
   return updated;

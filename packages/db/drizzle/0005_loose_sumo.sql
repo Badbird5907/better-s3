@@ -1,2 +1,0 @@
-ALTER TABLE "file_keys" DROP CONSTRAINT "file_keys_access_key_unique";--> statement-breakpoint
-CREATE UNIQUE INDEX "file_keys_project_access_key_idx" ON "file_keys" USING btree ("project_id","access_key");

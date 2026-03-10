@@ -22,6 +22,8 @@ export const env = createEnv({
     WORKER_DOMAIN: z.string().min(1), // e.g., "files.evanyu.dev" (without protocol)
     SIGNING_SECRET: z.string().min(32),
     CALLBACK_SECRET: z.string().min(32),
+    WEBHOOK_DELIVERY_ENABLED: z.boolean().default(true),
+    DEV_UPLOAD_SSE_ENABLED: z.boolean().default(true),
   },
 
   /**

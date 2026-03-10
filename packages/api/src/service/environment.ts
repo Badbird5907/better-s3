@@ -1,9 +1,11 @@
-import type { db as dbClient } from "@silo/db/client";
+import type { Db } from "@silo/db/client";
 import { and, eq } from "@silo/db";
 import { projectEnvironments } from "@silo/db/schema";
+import { nanoid } from "nanoid";
 import { env } from "../env";
-
-type Db = typeof dbClient;
+const WEBHOOK_EVENTS = ["upload.completed", "upload.failed"] as const;
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+const WEBHOOK_EVENT_SET = new Set<WebhookEvent>(WEBHOOK_EVENTS);
 
 function toSlug(input: string) {
   return input
@@ -151,6 +153,95 @@ export async function updateEnvironment(
     .returning();
 
   return updated;
+}
+
+export function validateWebhookUrl(input: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(input);
+  } catch {
+    throw new Error("Invalid webhook URL");
+  }
+
+  if (!["https:", "http:"].includes(parsed.protocol)) {
+    throw new Error("Webhook URL must use http or https protocol");
+  }
+
+  return parsed.toString();
+}
+
+function sanitizeWebhookEvents(events?: WebhookEvent[]): WebhookEvent[] {
+  if (!events) return [...WEBHOOK_EVENTS];
+  const unique = new Set<WebhookEvent>();
+  for (const event of events) {
+    if (!WEBHOOK_EVENT_SET.has(event)) {
+      throw new Error(`Unsupported webhook event: ${event}`);
+    }
+    unique.add(event);
+  }
+  return [...unique];
+}
+
+export function createWebhookSecret(): string {
+  return `whsec_${nanoid(32)}`;
+}
+
+export async function updateEnvironmentWebhookConfig(
+  db: Db,
+  input: {
+    environmentId: string;
+    enabled?: boolean;
+    webhookUrl?: string | null;
+    webhookEvents?: WebhookEvent[];
+    webhookSecret?: string | null;
+  },
+) {
+  const updates: Partial<typeof projectEnvironments.$inferInsert> = {};
+
+  if (input.enabled !== undefined) {
+    updates.webhookEnabled = input.enabled;
+  }
+
+  if (input.webhookUrl !== undefined) {
+    updates.webhookUrl =
+      input.webhookUrl === null ? null : validateWebhookUrl(input.webhookUrl);
+  }
+
+  if (input.webhookEvents !== undefined) {
+    updates.webhookEvents = sanitizeWebhookEvents(input.webhookEvents);
+  }
+
+  if (input.webhookSecret !== undefined) {
+    updates.webhookSecret = input.webhookSecret;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return db.query.projectEnvironments.findFirst({
+      where: eq(projectEnvironments.id, input.environmentId),
+    });
+  }
+
+  const [updated] = await db
+    .update(projectEnvironments)
+    .set(updates)
+    .where(eq(projectEnvironments.id, input.environmentId))
+    .returning();
+
+  return updated;
+}
+
+export async function rotateEnvironmentWebhookSecret(
+  db: Db,
+  environmentId: string,
+) {
+  const newSecret = createWebhookSecret();
+  const [updated] = await db
+    .update(projectEnvironments)
+    .set({ webhookSecret: newSecret })
+    .where(eq(projectEnvironments.id, environmentId))
+    .returning();
+
+  return { environment: updated, secret: newSecret };
 }
 
 export async function deleteEnvironment(db: Db, environmentId: string) {
