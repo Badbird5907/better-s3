@@ -1,8 +1,9 @@
-import { createSiloCore } from "./upload";
+import { createSiloCore, createSiloCoreFromToken } from "./upload";
 import type { UploadCore, UploadCoreConfig } from "./upload";
 
 export interface SiloClientConfig {
   apiBaseUrl: string;
+  token?: string;
   apiKey?: string;
 }
 
@@ -13,8 +14,10 @@ export type SiloClientUploadConfig = Omit<UploadCoreConfig, "apiBaseUrl" | "apiK
 
 export interface SiloClient {
   getApiBaseUrl(): string;
+  getToken(): string | undefined;
   getApiKey(): string | undefined;
   createSiloCore(config: SiloClientUploadConfig): UploadCore;
+  createSiloCoreFromToken(token?: string): UploadCore;
 }
 
 export function createSiloClient(config: SiloClientConfig): SiloClient {
@@ -22,6 +25,7 @@ export function createSiloClient(config: SiloClientConfig): SiloClient {
 
   return {
     getApiBaseUrl: () => apiBaseUrl,
+    getToken: () => config.token,
     getApiKey: () => config.apiKey,
     createSiloCore: (uploadConfig) => {
       const apiKey = uploadConfig.apiKey ?? config.apiKey;
@@ -35,6 +39,18 @@ export function createSiloClient(config: SiloClientConfig): SiloClient {
         ...uploadConfig,
         apiBaseUrl: uploadConfig.apiBaseUrl ?? apiBaseUrl,
         apiKey,
+      });
+    },
+    createSiloCoreFromToken: (token) => {
+      const tokenToUse = token ?? config.token;
+      if (!tokenToUse) {
+        throw new Error(
+          "Missing token. Provide one in createSiloClient(...) or createSiloCoreFromToken(...).",
+        );
+      }
+      return createSiloCoreFromToken({
+        url: apiBaseUrl,
+        token: tokenToUse,
       });
     },
   };

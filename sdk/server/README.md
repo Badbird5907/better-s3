@@ -13,22 +13,25 @@ framework-agnostic router for defining typed file routes with middleware.
 - internal callback envelope in `callbackMetadata.__silo`
 - `handleUploadCallback(...)`: verify callback signatures and dispatch
   `onUploadComplete` handlers
+- `extractRouterConfig(...)`: safe route config extraction for client hydration
 
 ## Example
 
 ```ts
 import { createSiloUpload, type FileRouter } from "@silo-storage/sdk-server";
 
-const f = createSiloUpload<Request>();
+type Context = { userId: string };
+
+const f = createSiloUpload<Request, Context>();
 
 export const fileRouter = {
   imageUploader: f({
     image: { maxFileSize: "4MB", maxFileCount: 1 },
   })
-    .middleware(async ({ req }) => {
-      const userId = req.headers.get("x-user-id");
+    .middleware(async ({ req, context, input }) => {
+      const userId = context?.userId ?? req.headers.get("x-user-id");
       if (!userId) throw new Error("Unauthorized");
-      return { userId };
+      return { userId, input };
     })
     .onUploadComplete(async ({ metadata, file }) => {
       return { uploadedBy: metadata.userId, fileId: file.fileId };

@@ -14,7 +14,6 @@ import { createDevUploadEventStream } from "@/lib/upload/dev-sse";
 import { registerFileKeyIntent } from "@/lib/upload/register";
 
 const schema = z.object({
-  projectId: z.string(),
   environmentId: z.string(),
   accessKey: z.string().min(1),
   fileName: z.string().min(1),
@@ -61,7 +60,6 @@ export async function POST(request: Request) {
   }
 
   const {
-    projectId,
     environmentId,
     accessKey,
     fileName,
@@ -74,6 +72,15 @@ export async function POST(request: Request) {
     callbackMetadata,
     dev: isDev,
   } = result.data;
+
+  const projectId = authResult.projectId;
+  if (!projectId) {
+    return jsonError(
+      "Unauthorized",
+      "API key is not scoped to a project.",
+      401,
+    );
+  }
 
   const project = await validateProjectAccess(authResult, projectId);
   if (project instanceof Response) return project;

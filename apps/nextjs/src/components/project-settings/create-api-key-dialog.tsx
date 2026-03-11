@@ -41,15 +41,19 @@ export function CreateApiKeyDialog({
   const trpc = useTRPC();
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");
-  const [environmentId, setEnvironmentId] = React.useState<string>("all");
+  const [environmentId, setEnvironmentId] = React.useState<string>("");
   const [expirationOption, setExpirationOption] =
     React.useState<string>("never");
   const [createdKey, setCreatedKey] = React.useState<string | null>(null);
   const [createdSigningSecret, setCreatedSigningSecret] = React.useState<
     string | null
   >(null);
+  const [createdSiloToken, setCreatedSiloToken] = React.useState<string | null>(
+    null,
+  );
   const [copied, setCopied] = React.useState(false);
   const [copiedSecret, setCopiedSecret] = React.useState(false);
+  const [copiedBothVars, setCopiedBothVars] = React.useState(false);
 
   const environmentsQuery = useQuery({
     ...trpc.apiKey.getEnvironments.queryOptions({ projectId, organizationId }),
@@ -61,6 +65,7 @@ export function CreateApiKeyDialog({
       onSuccess: (data) => {
         setCreatedKey(data.key);
         setCreatedSigningSecret(data.signingSecret);
+        setCreatedSiloToken(data.siloToken ?? null);
         onCreated?.();
       },
       onError: (error: { message?: string }) => {
@@ -71,7 +76,7 @@ export function CreateApiKeyDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !environmentId) return;
 
     // Calculate expiration date based on selected option
     let expiresAt: Date | undefined;
@@ -100,7 +105,7 @@ export function CreateApiKeyDialog({
       projectId,
       organizationId,
       name: name.trim(),
-      environmentId: environmentId === "all" ? undefined : environmentId,
+      environmentId,
       expiresAt,
     });
   };
@@ -111,6 +116,15 @@ export function CreateApiKeyDialog({
     setCopied(true);
     toast.success("API key copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyBothVars = async () => {
+    if (!createdSiloToken) return;
+    const snippet = `SILO_URL=${window.location.origin}\nSILO_TOKEN=${createdSiloToken}`;
+    await navigator.clipboard.writeText(snippet);
+    setCopiedBothVars(true);
+    toast.success("SILO_URL and SILO_TOKEN copied to clipboard");
+    setTimeout(() => setCopiedBothVars(false), 2000);
   };
 
   const handleCopySigningSecret = async () => {
@@ -126,17 +140,28 @@ export function CreateApiKeyDialog({
     // Reset form after dialog closes
     setTimeout(() => {
       setName("");
-      setEnvironmentId("all");
+      setEnvironmentId("");
       setExpirationOption("never");
       setCreatedKey(null);
       setCreatedSigningSecret(null);
+      setCreatedSiloToken(null);
       setCopied(false);
       setCopiedSecret(false);
+      setCopiedBothVars(false);
       createMutation.reset();
     }, 200);
   };
 
   const environments = environmentsQuery.data ?? [];
+  const hasEnvironments = environments.length > 0;
+  const selectedEnvironment = environments.find((env) => env.id === environmentId);
+
+  React.useEffect(() => {
+    if (!open || !hasEnvironments || environmentId) return;
+    const firstEnvironment = environments[0];
+    if (!firstEnvironment) return;
+    setEnvironmentId(firstEnvironment.id);
+  }, [environmentId, environments, hasEnvironments, open]);
 
   return (
     <Dialog
@@ -167,6 +192,11 @@ export function CreateApiKeyDialog({
             </DialogHeader>
             <div className="py-4">
               <div className="space-y-4">
+                {selectedEnvironment ? (
+                  <p className="text-muted-foreground text-xs">
+                    This key is scoped to <strong>{selectedEnvironment.name}</strong>.
+                  </p>
+                ) : null}
                 <div className="space-y-2">
                   <Label>Your API Key</Label>
                   <div className="flex items-center gap-2">
@@ -213,6 +243,38 @@ export function CreateApiKeyDialog({
                     </p>
                   </div>
                 )}
+                <div className="space-y-2">
+                  <Label>Environment Snippet</Label>
+                  {createdSiloToken ? (
+                    <>
+                      <pre className="bg-muted rounded-md border px-3 py-2 font-mono text-xs whitespace-pre-wrap break-all">
+                        {`SILO_URL=${typeof window === "undefined" ? "" : window.location.origin}\nSILO_TOKEN=${createdSiloToken}`}
+                      </pre>
+                      <Button
+                        variant="outline"
+                        onClick={handleCopyBothVars}
+                        className="w-full"
+                      >
+                        {copiedBothVars ? (
+                          <>
+                            <Check className="mr-2 h-4 w-4 text-green-500" />
+                            Copied both vars
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy both vars
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">
+                      SILO_TOKEN could not be generated. Delete this key and create
+                      a new key scoped to an environment.
+                    </p>
+                  )}
+                </div>
                 <p className="text-muted-foreground text-xs">
                   Store these securely. They will not be shown again.
                 </p>
@@ -227,7 +289,7 @@ export function CreateApiKeyDialog({
             <DialogHeader>
               <DialogTitle>Create API Key</DialogTitle>
               <DialogDescription>
-                Create a new API key for programmatic access to this project.
+                Create an environment-scoped API key for programmatic uploads.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -245,13 +307,16 @@ export function CreateApiKeyDialog({
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="environment">Environment</Label>
-                <Select value={environmentId} onValueChange={setEnvironmentId}>
+                <Label htmlFor="environment">Environment Scope</Label>
+                <Select
+                  value={environmentId}
+                  onValueChange={setEnvironmentId}
+                  disabled={!hasEnvironments}
+                >
                   <SelectTrigger id="environment">
                     <SelectValue placeholder="Select environment" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Environments</SelectItem>
                     {environments.map((env) => (
                       <SelectItem key={env.id} value={env.id}>
                         {env.name}
@@ -263,9 +328,14 @@ export function CreateApiKeyDialog({
                   </SelectContent>
                 </Select>
                 <p className="text-muted-foreground text-xs">
-                  Restrict this key to a specific environment, or allow access
-                  to all
+                  SDK upload tokens are environment-specific. Use one key per deploy
+                  target (dev/staging/prod).
                 </p>
+                {!hasEnvironments ? (
+                  <p className="text-xs text-amber-600">
+                    Create an environment first, then create an API key.
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="expiresAt">Expiration</Label>
@@ -296,7 +366,7 @@ export function CreateApiKeyDialog({
               </Button>
               <Button
                 type="submit"
-                disabled={createMutation.isPending || !name.trim()}
+                disabled={createMutation.isPending || !name.trim() || !environmentId}
               >
                 {createMutation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

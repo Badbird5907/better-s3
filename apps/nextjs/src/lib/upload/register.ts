@@ -18,7 +18,6 @@ export const registerFileKeySchema = z.object({
 });
 
 export const registerUploadBodySchema = z.object({
-  projectId: z.string(),
   environmentId: z.string(),
   fileKeys: z.array(registerFileKeySchema).min(1),
   metadata: unknownRecordSchema.optional(),

@@ -43,22 +43,19 @@ interface EnvironmentVariableRowProps {
 }
 
 interface CreatedValues {
-  apiKey: string | null;
-  environmentSlug: string | null;
+  siloToken: string | null;
   signingSecret: string | null;
 }
 
 type CopyField = keyof CreatedValues;
 
 const EMPTY_CREATED_VALUES: CreatedValues = {
-  apiKey: null,
-  environmentSlug: null,
+  siloToken: null,
   signingSecret: null,
 };
 
 const EMPTY_COPIED_VALUES: Record<CopyField, boolean> = {
-  apiKey: false,
-  environmentSlug: false,
+  siloToken: false,
   signingSecret: false,
 };
 
@@ -138,16 +135,22 @@ export function CreatePersonalEnvironmentWizard({
             return;
           }
           try {
-            const apiKeyResult = await createApiKeyMutation.mutateAsync({
+            const apiKeyResult: unknown = await createApiKeyMutation.mutateAsync({
               organizationId,
               projectId,
               name: apiKeyName.trim() || `${name.trim() || defaultName} API Key`,
               environmentId: environment.id,
             });
+            const record =
+              apiKeyResult && typeof apiKeyResult === "object"
+                ? (apiKeyResult as Record<string, unknown>)
+                : null;
+            const siloToken = typeof record?.siloToken === "string" ? record.siloToken : null;
+            const signingSecret =
+              typeof record?.signingSecret === "string" ? record.signingSecret : null;
             setCreatedValues({
-              apiKey: apiKeyResult.key,
-              signingSecret: apiKeyResult.signingSecret,
-              environmentSlug: environment.slug,
+              siloToken,
+              signingSecret,
             });
             setStep(3);
             onCreated?.();
@@ -215,6 +218,17 @@ export function CreatePersonalEnvironmentWizard({
     [createdValues],
   );
 
+  const copySiloVars = React.useCallback(async () => {
+    if (!createdValues.siloToken) return;
+    const snippet = `SILO_URL=${window.location.origin}\nSILO_TOKEN=${createdValues.siloToken}`;
+    await navigator.clipboard.writeText(snippet);
+    setCopiedValues((prev) => ({ ...prev, siloToken: true }));
+    toast.success("SILO_URL and SILO_TOKEN copied");
+    setTimeout(() => {
+      setCopiedValues((prev) => ({ ...prev, siloToken: false }));
+    }, 1500);
+  }, [createdValues.siloToken]);
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
@@ -274,9 +288,9 @@ export function CreatePersonalEnvironmentWizard({
             <p>
               Your SDK configuration will target this environment with:
               <br />
-              <code>SILO_API_KEY</code>
+              <code>SILO_URL</code>
               <br />
-              <code>SILO_ENV</code>
+              <code>SILO_TOKEN</code>
             </p>
             <p className="text-muted-foreground">
               Name: <strong>{name.trim() || defaultName}</strong>
@@ -296,22 +310,25 @@ export function CreatePersonalEnvironmentWizard({
         ) : (
           <div className="space-y-4 text-sm">
             <p>Environment and API key created.</p>
-            {createdValues.apiKey && (
-              <EnvironmentVariableRow
-                label="SILO_API_KEY"
-                value={createdValues.apiKey}
-                copied={copiedValues.apiKey}
-                onCopy={() => void copyCreatedValue("apiKey", "API key copied")}
-              />
-            )}
-            <EnvironmentVariableRow
-              label="SILO_ENV"
-              value={createdValues.environmentSlug}
-              copied={copiedValues.environmentSlug}
-              onCopy={() =>
-                void copyCreatedValue("environmentSlug", "Environment slug copied")
-              }
-            />
+            {createdValues.siloToken ? (
+              <div className="space-y-2">
+                <Label>SILO setup</Label>
+                <pre className="bg-muted rounded-md border px-3 py-2 font-mono text-xs whitespace-pre-wrap break-all">
+                  {`SILO_URL=${typeof window === "undefined" ? "" : window.location.origin}\nSILO_TOKEN=${createdValues.siloToken}`}
+                </pre>
+                <Button
+                  variant="outline"
+                  onClick={() => void copySiloVars()}
+                >
+                  {copiedValues.siloToken ? (
+                    <Check className="mr-2 h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="mr-2 h-4 w-4" />
+                  )}
+                  Copy both vars
+                </Button>
+              </div>
+            ) : null}
             {createdValues.signingSecret && (
               <EnvironmentVariableRow
                 label="SILO_SIGNING_SECRET"

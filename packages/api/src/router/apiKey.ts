@@ -12,8 +12,24 @@ import {
   users,
 } from "@silo-storage/db/schema";
 import { deriveSigningSecretFromHash } from "@silo-storage/shared/signing";
+import { env } from "../env";
 
 import { organizationProcedure } from "../trpc";
+
+function encodeSiloToken(payload: {
+  v: number;
+  ak: string;
+  eid: string;
+  is: string;
+  ss: string;
+}): string {
+  const json = JSON.stringify(payload);
+  return Buffer.from(json, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
 
 // Helper to hash the API key using SHA-256
 async function hashApiKey(key: string): Promise<string> {
@@ -114,7 +130,7 @@ export const apiKeyRouter = {
       z.object({
         projectId: z.string(),
         name: z.string().min(1, "Name is required").max(100),
-        environmentId: z.string().optional(), // null/undefined = all environments
+        environmentId: z.string().min(1, "Environment is required"),
         expiresAt: z.date().optional(),
       }),
     )
@@ -133,21 +149,18 @@ export const apiKeyRouter = {
         });
       }
 
-      // If environmentId is provided, verify it belongs to this project
-      if (input.environmentId) {
-        const environment = await ctx.db.query.projectEnvironments.findFirst({
-          where: and(
-            eq(projectEnvironments.id, input.environmentId),
-            eq(projectEnvironments.projectId, input.projectId),
-          ),
-        });
+      const environment = await ctx.db.query.projectEnvironments.findFirst({
+        where: and(
+          eq(projectEnvironments.id, input.environmentId),
+          eq(projectEnvironments.projectId, input.projectId),
+        ),
+      });
 
-        if (!environment) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Environment not found",
-          });
-        }
+      if (!environment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Environment not found",
+        });
       }
 
       const fullKey = `sk-silo-${nanoid(32)}`;
@@ -177,11 +190,26 @@ export const apiKeyRouter = {
           keyHash,
           projectId: input.projectId,
           organizationId: ctx.organizationId,
-          environmentId: input.environmentId ?? null,
+          environmentId: input.environmentId,
           createdById: ctx.membership.id,
           expiresAt: input.expiresAt,
         })
         .returning();
+      if (!newKey) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create API key",
+        });
+      }
+
+      const ingestServer = new URL(env.WORKER_URL).host;
+      const siloToken = encodeSiloToken({
+        v: 1,
+        ak: fullKey,
+        eid: input.environmentId,
+        is: ingestServer,
+        ss: signingSecret,
+      });
 
       return {
         id: newKey?.id,
@@ -190,6 +218,8 @@ export const apiKeyRouter = {
         signingSecret,
         keyPrefix: newKey?.keyPrefix,
         environmentId: newKey?.environmentId,
+        ingestServer,
+        siloToken,
         expiresAt: newKey?.expiresAt,
         createdAt: newKey?.createdAt,
       };

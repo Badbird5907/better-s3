@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Globe, Key, MoreHorizontal, Trash2 } from "lucide-react";
+import { Key, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@silo-storage/ui/components/avatar";
@@ -121,6 +121,10 @@ export function ApiKeysList({ projectId, organizationId }: ApiKeysListProps) {
             Manage API keys for programmatic access to this project (
             {apiKeys.length} {apiKeys.length === 1 ? "key" : "keys"})
           </CardDescription>
+          <p className="text-muted-foreground mt-2 text-xs">
+            Deployment setup: create one key per environment and use its `SILO_TOKEN`
+            in that environment only.
+          </p>
         </div>
         <CreateApiKeyDialog
           projectId={projectId}
@@ -163,24 +167,17 @@ export function ApiKeysList({ projectId, organizationId }: ApiKeysListProps) {
                       </code>
                     </TableCell>
                     <TableCell>
-                      {apiKey.environment ? (
-                        <Badge
-                          variant={
-                            apiKey.environment.type === "production"
-                              ? "default"
-                              : apiKey.environment.type === "staging"
-                                ? "secondary"
-                                : "outline"
-                          }
-                        >
-                          {apiKey.environment.name}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">
-                          <Globe className="mr-1 h-3 w-3" />
-                          All
-                        </Badge>
-                      )}
+                      <Badge
+                        variant={
+                          apiKey.environment?.type === "production"
+                            ? "default"
+                            : apiKey.environment?.type === "staging"
+                              ? "secondary"
+                              : "outline"
+                        }
+                      >
+                        {apiKey.environment?.name ?? "Unknown"}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       {apiKey.createdBy ? (

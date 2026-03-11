@@ -118,10 +118,7 @@ export async function POST(request: Request) {
     where: and(
       eq(apiKeys.projectId, projectId),
       or(isNull(apiKeys.expiresAt), gt(apiKeys.expiresAt, new Date())),
-      or(
-        isNull(apiKeys.environmentId),
-        eq(apiKeys.environmentId, environmentId),
-      ),
+      eq(apiKeys.environmentId, environmentId),
     ),
   });
 

@@ -25,8 +25,8 @@
     "lint:ws": "pnpm dlx sherif@latest",
     "preinstall": "pnpm auto-export",
     "postinstall": "pnpm lint:ws",
-    "sdk:build": "pnpm --filter @silo-storage/sdk-core --filter @silo-storage/sdk-server build",
-    "sdk:typecheck": "pnpm --filter @silo-storage/sdk-core --filter @silo-storage/sdk-server typecheck",
+    "sdk:build": "pnpm --filter @silo-storage/sdk-core --filter @silo-storage/sdk-server --filter @silo-storage/sdk-next --filter @silo-storage/sdk-react build",
+    "sdk:typecheck": "pnpm --filter @silo-storage/sdk-core --filter @silo-storage/sdk-server --filter @silo-storage/sdk-next --filter @silo-storage/sdk-react typecheck",
     "typecheck": "turbo run typecheck",
     "ui-add": "pnpm -F @silo-storage/ui ui-add"
   },

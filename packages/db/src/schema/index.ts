@@ -223,7 +223,7 @@ export const apiKeys = pgTable("api_keys", {
     {
       onDelete: "cascade",
     },
-  ), // null = all environments
+  ).notNull(),
   createdById: text("created_by_id").references(() => auth.members.id, {
     onDelete: "set null",
   }), // nullable in case member is removed

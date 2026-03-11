@@ -4,7 +4,7 @@ This package contains framework-agnostic primitives for Silo uploads and callbac
 
 ## Core Upload API
 
-Use `createSiloCore` to:
+Use `createSiloCoreFromToken` to:
 - generate signed upload URLs (via `@silo-storage/shared`)
 - register file intents with `/api/v1/upload/register`
 - enable dev streaming mode (`dev: true`)
@@ -12,17 +12,11 @@ Use `createSiloCore` to:
 - power framework runtimes such as `@silo-storage/sdk-server`
 
 ```ts
-import { createSiloCore } from "@silo-storage/sdk-core";
+import { createSiloCoreFromToken } from "@silo-storage/sdk-core";
 
-const uploadCore = createSiloCore({
-  apiBaseUrl: "https://silo.example.com",
-  apiKey: process.env.SILO_API_KEY!,
-  projectId: "proj_123",
-  environmentId: "env_123",
-  projectSlug: "my-project",
-  ingestServer: "ingest.silo.example.com",
-  keyId: "sk-silo-abcd",
-  signingSecret: process.env.SILO_SIGNING_SECRET!,
+const uploadCore = createSiloCoreFromToken({
+  url: process.env.SILO_URL!,
+  token: process.env.SILO_TOKEN!,
   callbackUrl: "https://app.example.com/api/silo/callback",
 });
 
@@ -34,6 +28,14 @@ const prepared = await uploadCore.prepareUpload({
   },
 });
 ```
+
+`SILO_TOKEN` is a base64url JSON payload with compact keys:
+
+- `v` version
+- `ak` apiKey
+- `eid` environmentId
+- `is` ingestServer
+- `ss` signingSecret
 
 ## Callback URL
 

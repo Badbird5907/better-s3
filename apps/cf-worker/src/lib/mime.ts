@@ -33,8 +33,7 @@ const MIME_TYPE_EQUIVALENTS: Record<string, string> = {
 
   // application variants
   "text/x-json": "application/json",
-  "application/x-javascript": "text/javascript",
-  "application/javascript": "text/javascript",
+  "application/x-javascript": "application/javascript",
   "text/javascript": "application/javascript",
   "application/x-gzip": "application/gzip",
   "application/x-compressed": "application/gzip",
@@ -42,6 +41,7 @@ const MIME_TYPE_EQUIVALENTS: Record<string, string> = {
   "application/x-rar": "application/x-rar-compressed",
   "application/rar": "application/x-rar-compressed",
   "application/x-7z": "application/x-7z-compressed",
+  "text/xml": "application/xml",
 
   // font variants
   "application/x-font-ttf": "font/ttf",
@@ -50,8 +50,16 @@ const MIME_TYPE_EQUIVALENTS: Record<string, string> = {
   "application/font-woff2": "font/woff2",
 };
 
+function stripMimeParameters(mimeType: string): string {
+  return mimeType.split(";")[0]?.trim().toLowerCase() ?? "";
+}
+
+function isGenericXmlMimeType(mimeType: string): boolean {
+  return mimeType === "application/xml" || mimeType === "text/xml";
+}
+
 export function normalizeMimeType(mimeType: string): string {
-  const lowered = mimeType.toLowerCase().trim();
+  const lowered = stripMimeParameters(mimeType);
   return MIME_TYPE_EQUIVALENTS[lowered] ?? lowered;
 }
 
@@ -59,7 +67,25 @@ export function areMimeTypesEquivalent(
   mimeType1: string,
   mimeType2: string,
 ): boolean {
-  return normalizeMimeType(mimeType1) === normalizeMimeType(mimeType2);
+  const normalizedMimeType1 = normalizeMimeType(mimeType1);
+  const normalizedMimeType2 = normalizeMimeType(mimeType2);
+
+  if (normalizedMimeType1 === normalizedMimeType2) {
+    return true;
+  }
+
+  // Some detectors return generic XML for SVG or other XML-based assets.
+  // Accept generic XML for SVG to avoid false negatives on valid uploads.
+  if (
+    (normalizedMimeType1 === "image/svg+xml" &&
+      isGenericXmlMimeType(normalizedMimeType2)) ||
+    (normalizedMimeType2 === "image/svg+xml" &&
+      isGenericXmlMimeType(normalizedMimeType1))
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 export async function detectMimeType(
@@ -108,12 +134,17 @@ export function isAllowedMimeType(
     return true;
   }
 
+  const normalizedMimeType = normalizeMimeType(mimeType);
+
   // supports wildcards like "image/*"
   return allowedTypes.some((allowed) => {
-    if (allowed.endsWith("/*")) {
-      const prefix = allowed.slice(0, -2);
-      return mimeType.startsWith(prefix + "/");
+    const normalizedAllowedType = normalizeMimeType(allowed);
+
+    if (normalizedAllowedType.endsWith("/*")) {
+      const prefix = normalizedAllowedType.slice(0, -2);
+      return normalizedMimeType.startsWith(prefix + "/");
     }
-    return mimeType === allowed;
+
+    return areMimeTypesEquivalent(normalizedMimeType, normalizedAllowedType);
   });
 }

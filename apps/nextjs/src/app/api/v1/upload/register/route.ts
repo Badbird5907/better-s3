@@ -40,7 +40,6 @@ export async function POST(request: Request) {
   }
 
   const {
-    projectId,
     environmentId,
     fileKeys,
     metadata,
@@ -49,6 +48,14 @@ export async function POST(request: Request) {
     dev,
   } = parsed.data;
 
+  const projectId = authResult.projectId;
+  if (!projectId) {
+    return jsonError(
+      "Unauthorized",
+      "API key is not scoped to a project.",
+      401,
+    );
+  }
   const project = await validateProjectAccess(authResult, projectId);
   if (project instanceof Response) return project;
 
@@ -99,16 +106,23 @@ export async function POST(request: Request) {
         );
       }
 
-      return createDevUploadEventStream(request, {
+      const streamResponse = await createDevUploadEventStream(request, {
         projectId,
         environmentId,
         fileKeyId: firstRegistered.fileKeyId,
+      });
+      const headers = new Headers(streamResponse.headers);
+      headers.set("x-silo-project-slug", project.slug);
+      return new Response(streamResponse.body, {
+        status: streamResponse.status,
+        headers,
       });
     }
 
     return new Response(
       JSON.stringify({
         success: true,
+        projectSlug: project.slug,
         fileKeys: registered,
       }),
       {

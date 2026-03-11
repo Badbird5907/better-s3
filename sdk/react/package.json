@@ -23,9 +23,6 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
-  "dependencies": {
-    "@silo-storage/sdk-core": "workspace:*"
-  },
   "devDependencies": {
     "@silo-storage/eslint-config": "workspace:*",
     "@silo-storage/prettier-config": "workspace:*",
@@ -40,5 +37,8 @@
   "peerDependencies": {
     "react": ">=18.2.0"
   },
-  "prettier": "@silo-storage/prettier-config"
+  "prettier": "@silo-storage/prettier-config",
+  "dependencies": {
+    "tus-js-client": "^4.3.1"
+  }
 }

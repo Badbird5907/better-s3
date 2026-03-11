@@ -207,10 +207,20 @@ export async function POST(request: Request) {
       );
     }
 
-    if (
-      apiKey.environmentId &&
-      apiKey.environmentId !== payload.environmentId
-    ) {
+    if (!apiKey.environmentId) {
+      return new Response(
+        JSON.stringify({
+          error: "API key must be scoped to an environment",
+          valid: false,
+        }),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (apiKey.environmentId !== payload.environmentId) {
       return new Response(
         JSON.stringify({
           error: "API key is not authorized for this environment",

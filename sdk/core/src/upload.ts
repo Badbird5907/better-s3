@@ -2,15 +2,100 @@ import { generateSignedUploadUrlWithSecret } from "./signing";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
+const siloTokenSchema = z
+  .object({
+    v: z.number().int().positive(),
+    ak: z.string().min(1),
+    eid: z.string().min(1),
+    is: z.string().min(1),
+    ss: z.string().min(1),
+  })
+  .strict();
+
+export interface ParsedSiloToken {
+  version: number;
+  apiKey: string;
+  environmentId: string;
+  ingestServer: string;
+  signingSecret: string;
+}
+
+export interface CreateSiloCoreFromTokenInput {
+  url: string;
+  token: string;
+  callbackUrl?: string;
+  fetch?: typeof fetch;
+}
+
+function decodeBase64UrlUtf8(input: string): string {
+  const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+
+  if (typeof atob === "function") {
+    return atob(padded);
+  }
+
+  const globalBuffer = (globalThis as { Buffer?: { from: (value: string, encoding: string) => { toString: (encoding: string) => string } } }).Buffer;
+  if (globalBuffer) {
+    return globalBuffer.from(padded, "base64").toString("utf8");
+  }
+
+  throw new Error("Unable to decode SILO_TOKEN in this runtime.");
+}
+
+export function encodeSiloToken(payload: {
+  v: number;
+  ak: string;
+  eid: string;
+  is: string;
+  ss: string;
+}): string {
+  const json = JSON.stringify(payload);
+  if (typeof btoa === "function") {
+    return btoa(json).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+  const globalBuffer = (globalThis as { Buffer?: { from: (value: string, encoding: string) => { toString: (encoding: string) => string } } }).Buffer;
+  if (globalBuffer) {
+    return globalBuffer.from(json, "utf8")
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+  }
+  throw new Error("Unable to encode SILO_TOKEN in this runtime.");
+}
+
+export function parseSiloToken(token: string): ParsedSiloToken {
+  const decoded = decodeBase64UrlUtf8(token);
+
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(decoded);
+  } catch {
+    throw new Error("Invalid SILO_TOKEN: expected base64url-encoded JSON.");
+  }
+
+  const parsed = siloTokenSchema.safeParse(parsedJson);
+  if (!parsed.success) {
+    throw new Error(`Invalid SILO_TOKEN: ${parsed.error.message}`);
+  }
+
+  return {
+    version: parsed.data.v,
+    apiKey: parsed.data.ak,
+    environmentId: parsed.data.eid,
+    ingestServer: parsed.data.is,
+    signingSecret: parsed.data.ss,
+  };
+}
+
 export interface UploadCoreConfig {
   apiBaseUrl: string;
   apiKey: string;
-  projectId: string;
   environmentId: string;
-  projectSlug: string;
   ingestServer: string;
-  keyId: string;
   signingSecret: string;
+  keyId?: string;
   callbackUrl?: string;
   fetch?: typeof fetch;
 }
@@ -101,11 +186,13 @@ const registeredUploadFileSchema = z.object({
 const registerResponseBodySchema = z.object({
   success: z.literal(true),
   fileKeys: z.array(registeredUploadFileSchema),
+  projectSlug: z.string().min(1),
 });
 
 function parseRegisterResponseBody(value: unknown): {
   success: true;
   fileKeys: RegisteredUploadFile[];
+  projectSlug: string;
 } {
   const parsed = registerResponseBodySchema.safeParse(value);
   if (!parsed.success) {
@@ -135,6 +222,7 @@ function requireAbsoluteCallbackUrl(value: string): string {
 export function createSiloCore(config: UploadCoreConfig) {
   const baseUrl = stripTrailingSlash(config.apiBaseUrl);
   const fetchImpl = config.fetch ?? fetch;
+  const resolvedKeyId = config.keyId ?? config.apiKey.slice(0, 11);
 
   async function registerUploadBatch(
     input: RegisterUploadBatchInput,
@@ -151,33 +239,17 @@ export function createSiloCore(config: UploadCoreConfig) {
     const protocol = resolveProtocol(baseUrl, input.protocol);
     const expiresIn = input.expiresIn ?? 3600;
 
-    const preparedFiles: PreparedUploadFile[] = [];
+    const preparedFilesWithoutUrl: (
+      Omit<PreparedUploadFile, "uploadUrl"> & {
+        uploadUrl?: string;
+      }
+    )[] = [];
     for (const file of input.files) {
       const fileKeyId = file.fileKeyId ?? nanoid(16);
       const accessKey = file.accessKey ?? createDefaultAccessKey();
-      const uploadUrl = await generateSignedUploadUrlWithSecret(
-        config.ingestServer,
-        config.projectSlug,
-        {
-          environmentId: config.environmentId,
-          fileKeyId,
-          accessKey,
-          fileName: file.fileName,
-          size: file.size,
-          hash: file.hash,
-          mimeType: file.mimeType,
-          isPublic: file.isPublic,
-          keyId: config.keyId,
-          expiresIn,
-          protocol,
-        },
-        config.signingSecret,
-      );
-
-      preparedFiles.push({
+      preparedFilesWithoutUrl.push({
         fileKeyId,
         accessKey,
-        uploadUrl,
         fileName: file.fileName,
         size: file.size,
         hash: file.hash,
@@ -189,9 +261,8 @@ export function createSiloCore(config: UploadCoreConfig) {
     }
 
     const registerBody: Record<string, unknown> = {
-      projectId: config.projectId,
       environmentId: config.environmentId,
-      fileKeys: preparedFiles.map((file) => ({
+      fileKeys: preparedFilesWithoutUrl.map((file) => ({
         fileKeyId: file.fileKeyId,
         accessKey: file.accessKey,
         fileName: file.fileName,
@@ -234,10 +305,47 @@ export function createSiloCore(config: UploadCoreConfig) {
     }
 
     const contentType = response.headers.get("content-type") ?? "";
+
+    async function signPreparedFiles(projectSlug: string): Promise<PreparedUploadFile[]> {
+      const preparedFiles: PreparedUploadFile[] = [];
+      for (const file of preparedFilesWithoutUrl) {
+        const uploadUrl = await generateSignedUploadUrlWithSecret(
+          config.ingestServer,
+          projectSlug,
+          {
+            environmentId: config.environmentId,
+            fileKeyId: file.fileKeyId,
+            accessKey: file.accessKey,
+            fileName: file.fileName,
+            size: file.size,
+            hash: file.hash,
+            mimeType: file.mimeType,
+            isPublic: file.isPublic,
+            keyId: resolvedKeyId,
+            expiresIn,
+            protocol,
+          },
+          config.signingSecret,
+        );
+        preparedFiles.push({
+          ...file,
+          uploadUrl,
+        });
+      }
+      return preparedFiles;
+    }
+
     if (contentType.includes("text/event-stream")) {
       if (!response.body) {
         throw new Error("Register returned an SSE response without a readable body");
       }
+      const projectSlug = response.headers.get("x-silo-project-slug");
+      if (!projectSlug) {
+        throw new Error(
+          "Register SSE response is missing x-silo-project-slug header.",
+        );
+      }
+      const preparedFiles = await signPreparedFiles(projectSlug);
       return {
         mode: "development",
         files: preparedFiles,
@@ -247,6 +355,7 @@ export function createSiloCore(config: UploadCoreConfig) {
     }
 
     const parsedJson = parseRegisterResponseBody(await response.json());
+    const preparedFiles = await signPreparedFiles(parsedJson.projectSlug);
     const byFileKeyId = new Map(parsedJson.fileKeys.map((item) => [item.fileKeyId, item]));
     return {
       mode: "production",
@@ -292,3 +401,19 @@ export function createSiloCore(config: UploadCoreConfig) {
 }
 
 export type UploadCore = ReturnType<typeof createSiloCore>;
+
+export function createSiloCoreFromToken(
+  input: CreateSiloCoreFromTokenInput,
+): UploadCore {
+  const parsed = parseSiloToken(input.token);
+
+  return createSiloCore({
+    apiBaseUrl: input.url,
+    apiKey: parsed.apiKey,
+    environmentId: parsed.environmentId,
+    ingestServer: parsed.ingestServer,
+    signingSecret: parsed.signingSecret,
+    callbackUrl: input.callbackUrl,
+    fetch: input.fetch,
+  });
+}

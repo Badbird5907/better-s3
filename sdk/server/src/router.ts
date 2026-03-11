@@ -15,13 +15,19 @@ export interface SiloRouteFileConstraint {
 
 export type SiloRouteConfig = Record<string, SiloRouteFileConstraint>;
 
+export interface SiloRouteOptions {
+  isPublic?: boolean;
+}
+
 export interface SiloRouteMiddlewareArgs<
   TRequest,
   TRouteConfig extends SiloRouteConfig,
   TContext = undefined,
+  TInput = unknown,
 > {
   req: TRequest;
   context?: TContext;
+  input?: TInput;
   files: UploadFileInput[];
   routeConfig: TRouteConfig;
   routeSlug: string;
@@ -67,8 +73,9 @@ export type MiddlewareFn<
   TRouteConfig extends SiloRouteConfig,
   TMiddlewareData extends Record<string, unknown>,
   TContext = undefined,
+  TInput = unknown,
 > = (
-  args: SiloRouteMiddlewareArgs<TRequest, TRouteConfig, TContext>,
+  args: SiloRouteMiddlewareArgs<TRequest, TRouteConfig, TContext, TInput>,
 ) => Promise<TMiddlewareData> | TMiddlewareData;
 
 export type OnUploadCompleteFn<
@@ -85,9 +92,17 @@ export interface SiloFileRoute<
   TRouteConfig extends SiloRouteConfig,
   TMiddlewareData extends Record<string, unknown>,
   TOutput,
+  TInput = unknown,
 > {
   routeConfig: TRouteConfig;
-  middleware?: MiddlewareFn<TRequest, TRouteConfig, TMiddlewareData, TContext>;
+  routeOptions?: SiloRouteOptions;
+  middleware?: MiddlewareFn<
+    TRequest,
+    TRouteConfig,
+    TMiddlewareData,
+    TContext,
+    TInput
+  >;
   onUploadComplete: OnUploadCompleteFn<TMiddlewareData, TOutput, TContext>;
 }
 
@@ -96,18 +111,33 @@ interface SiloRouteBuilder<
   TContext,
   TRouteConfig extends SiloRouteConfig,
   TMiddlewareData extends Record<string, unknown>,
+  TInput = unknown,
 > {
   middleware: <TNextMiddlewareData extends Record<string, unknown>>(
     middleware: MiddlewareFn<
       TRequest,
       TRouteConfig,
       TNextMiddlewareData,
-      TContext
+      TContext,
+      TInput
     >,
-  ) => SiloRouteBuilder<TRequest, TContext, TRouteConfig, TNextMiddlewareData>;
+  ) => SiloRouteBuilder<
+    TRequest,
+    TContext,
+    TRouteConfig,
+    TNextMiddlewareData,
+    TInput
+  >;
   onUploadComplete: <TOutput>(
     onUploadComplete: OnUploadCompleteFn<TMiddlewareData, TOutput, TContext>,
-  ) => SiloFileRoute<TRequest, TContext, TRouteConfig, TMiddlewareData, TOutput>;
+  ) => SiloFileRoute<
+    TRequest,
+    TContext,
+    TRouteConfig,
+    TMiddlewareData,
+    TOutput,
+    TInput
+  >;
 }
 
 export type FileRouter<TRequest = unknown, TContext = undefined> = Record<
@@ -117,15 +147,51 @@ export type FileRouter<TRequest = unknown, TContext = undefined> = Record<
     TContext,
     SiloRouteConfig,
     Record<string, unknown>,
+    unknown,
     unknown
   >
 >;
+
+export type AnyFileRouter = Record<
+  string,
+  SiloFileRoute<
+    never,
+    never,
+    SiloRouteConfig,
+    Record<string, unknown>,
+    unknown,
+    unknown
+  >
+>;
+export type RouteSlug<TRouter extends AnyFileRouter> = keyof TRouter & string;
+export type RouteConfigBySlug<
+  TRouter extends AnyFileRouter,
+  TRouteSlug extends RouteSlug<TRouter>,
+> = TRouter[TRouteSlug]["routeConfig"];
+export type RouteOutputBySlug<
+  TRouter extends AnyFileRouter,
+  TRouteSlug extends RouteSlug<TRouter>,
+> = InferRouteOutput<TRouter[TRouteSlug]>;
+export type RouteInputBySlug<
+  TRouter extends AnyFileRouter,
+  TRouteSlug extends RouteSlug<TRouter>,
+> = TRouter[TRouteSlug] extends SiloFileRoute<
+  unknown,
+  unknown,
+  SiloRouteConfig,
+  Record<string, unknown>,
+  unknown,
+  infer TInput
+>
+  ? TInput
+  : never;
 
 export type InferMiddlewareData<TRoute> = TRoute extends SiloFileRoute<
   unknown,
   unknown,
   SiloRouteConfig,
   infer TMiddlewareData,
+  unknown,
   unknown
 >
   ? TMiddlewareData
@@ -136,7 +202,8 @@ export type InferRouteOutput<TRoute> = TRoute extends SiloFileRoute<
   unknown,
   SiloRouteConfig,
   Record<string, unknown>,
-  infer TOutput
+  infer TOutput,
+  unknown
 >
   ? TOutput
   : never;
@@ -146,37 +213,65 @@ function createRouteBuilder<
   TContext,
   TRouteConfig extends SiloRouteConfig,
   TMiddlewareData extends Record<string, unknown>,
+  TInput = unknown,
 >(
   routeConfig: TRouteConfig,
-  middleware?: MiddlewareFn<TRequest, TRouteConfig, TMiddlewareData, TContext>,
-): SiloRouteBuilder<TRequest, TContext, TRouteConfig, TMiddlewareData> {
+  routeOptions?: SiloRouteOptions,
+  middleware?: MiddlewareFn<
+    TRequest,
+    TRouteConfig,
+    TMiddlewareData,
+    TContext,
+    TInput
+  >,
+): SiloRouteBuilder<TRequest, TContext, TRouteConfig, TMiddlewareData, TInput> {
   return {
     middleware: <TNextMiddlewareData extends Record<string, unknown>>(
       nextMiddleware: MiddlewareFn<
         TRequest,
         TRouteConfig,
         TNextMiddlewareData,
-        TContext
+        TContext,
+        TInput
       >,
-    ) => createRouteBuilder<TRequest, TContext, TRouteConfig, TNextMiddlewareData>(
+    ) => createRouteBuilder<
+      TRequest,
+      TContext,
+      TRouteConfig,
+      TNextMiddlewareData,
+      TInput
+    >(
       routeConfig,
+      routeOptions,
       nextMiddleware,
     ),
     onUploadComplete: <TOutput>(
       onUploadComplete: OnUploadCompleteFn<TMiddlewareData, TOutput, TContext>,
     ) => ({
       routeConfig,
+      routeOptions,
       middleware,
       onUploadComplete,
     }),
   };
 }
 
-export function createSiloUpload<TRequest = Request, TContext = undefined>() {
-  return <TRouteConfig extends SiloRouteConfig>(routeConfig: TRouteConfig) =>
-    createRouteBuilder<TRequest, TContext, TRouteConfig, Record<string, never>>(
-      routeConfig,
-    );
+export function createSiloUpload<
+  TRequest = Request,
+  TContext = undefined,
+  TInput = unknown,
+>() {
+  return <TRouteConfig extends SiloRouteConfig>(
+    routeConfig: TRouteConfig,
+    routeOptions?: SiloRouteOptions,
+  ) =>
+    createRouteBuilder<
+      TRequest,
+      TContext,
+      TRouteConfig,
+      Record<string, never>,
+      TInput
+    >(routeConfig, routeOptions);
 }
 
 function toRecord(value: unknown, message: string): Record<string, unknown> {
@@ -197,6 +292,7 @@ export interface RegisterRouteUploadInput<
   routeSlug: TRouteSlug;
   req: TRequest;
   context?: TContext;
+  input?: RouteInputBySlug<TRouter, TRouteSlug>;
   files: UploadFileInput[];
   callbackUrl?: string;
   requestMetadata?: Record<string, unknown>;
@@ -229,12 +325,19 @@ export async function registerRouteUpload<
     throw new Error(`Unknown route slug "${input.routeSlug}"`);
   }
 
+  const files = input.files.map((file) => ({
+    ...file,
+    // Route-level setting is authoritative; client payload cannot override it.
+    isPublic: route.routeOptions?.isPublic,
+  }));
+
   const middlewareData = route.middleware
     ? toRecord(
         await route.middleware({
           req: input.req,
           context: input.context,
-          files: input.files,
+          input: input.input,
+          files,
           routeConfig: route.routeConfig,
           routeSlug: input.routeSlug,
         }),
@@ -248,7 +351,7 @@ export async function registerRouteUpload<
   });
 
   const registerResult = await input.core.registerUploadBatch({
-    files: input.files,
+    files,
     callbackUrl: input.callbackUrl,
     callbackMetadata,
     requestMetadata: input.requestMetadata,
@@ -331,3 +434,17 @@ export type RouteRegisterInput = Omit<
   PrepareUploadInput,
   "callbackMetadata"
 >;
+
+export type RouterConfig<TRouter extends AnyFileRouter> = {
+  [TRouteSlug in RouteSlug<TRouter>]: RouteConfigBySlug<TRouter, TRouteSlug>;
+};
+
+export function extractRouterConfig<TRouter extends AnyFileRouter>(
+  router: TRouter,
+): RouterConfig<TRouter> {
+  const entries = Object.entries(router).map(([routeSlug, route]) => [
+    routeSlug,
+    route.routeConfig,
+  ]);
+  return Object.fromEntries(entries) as RouterConfig<TRouter>;
+}

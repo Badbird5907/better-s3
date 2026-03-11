@@ -72,6 +72,11 @@ export default function ProjectSettingsPage({
           projectId={projectId}
           organizationId={organizationId}
         />
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          Upload credentials are environment-specific. Create a separate API key
+          for each deployment environment and use the generated `SILO_TOKEN` for
+          that environment only.
+        </div>
         <ApiKeysList projectId={projectId} organizationId={organizationId} />
         <CreatePersonalEnvironmentWizard
           projectId={projectId}
