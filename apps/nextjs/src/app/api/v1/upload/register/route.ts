@@ -65,6 +65,7 @@ export async function POST(request: Request) {
         requestMetadata: metadata,
         callbackUrl,
         callbackMetadata,
+        apiKeyId: authResult.apiKeyId,
       });
       registered.push({
         fileKeyId: row.id,

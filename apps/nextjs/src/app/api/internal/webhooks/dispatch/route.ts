@@ -1,13 +1,19 @@
 import {
+  deriveSigningSecretFromApiKeyHash,
+  getFileCallbackTargetForEvent,
+  getLatestCallbackAttempt,
+  getLatestWebhookAttempt,
   getNextAttemptNumber,
+  getNextCallbackAttemptNumber,
   getWebhookTargetForEvent,
-  recordWebhookAttempt,
+  recordCallbackAttempt,
+  webhookAttempt,
   shouldRetryAttempt,
   signWebhookPayload,
 } from "@silo-storage/api/services";
-import { and, eq } from "@silo-storage/db";
+import { eq } from "@silo-storage/db";
 import { db } from "@silo-storage/db/client";
-import { fileKeys } from "@silo-storage/db/schema";
+import { apiKeys } from "@silo-storage/db/schema";
 import { handleCallback } from "@vercel/queue";
 import { queuedWebhookMessageSchema } from "@silo-storage/api/services";
 
@@ -17,189 +23,224 @@ interface QueueMetadata {
   messageId?: string;
 }
 
-function getCallbackUrlFromUnknown(value: unknown): string | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
+function shouldAttemptDelivery(lastStatus: string | null | undefined): boolean {
+  return !lastStatus || lastStatus === "retry";
+}
+
+type DeliveryAttemptStatus = "success" | "retry" | "failed";
+
+interface DeliveryAttemptWrite {
+  attemptNumber: number;
+  status: DeliveryAttemptStatus;
+  responseStatus?: number;
+  responseBody?: string;
+  error?: string;
+  latencyMs: number;
+}
+
+type SecretResolution =
+  | { secret: string }
+  | { error: string };
+
+interface DeliveryChannel {
+  url: string;
+  getLatestStatus: () => Promise<string | null | undefined>;
+  getNextAttemptNumber: () => Promise<number>;
+  resolveSecret: () => Promise<SecretResolution>;
+  recordAttempt: (input: DeliveryAttemptWrite) => Promise<void>;
+}
+
+async function deliverChannel(
+  channel: DeliveryChannel,
+  input: {
+    payload: string;
+    maxAttempts: number;
+    commonHeaders: Record<string, string>;
+  },
+) {
+  const latestStatus = await channel.getLatestStatus();
+  if (!shouldAttemptDelivery(latestStatus)) {
+    return false;
   }
-  const callbackUrl = (value as Record<string, unknown>).callbackUrl;
-  return typeof callbackUrl === "string" && callbackUrl.length > 0
-    ? callbackUrl
-    : null;
+
+  const startedAt = Date.now();
+  const attemptNumber = await channel.getNextAttemptNumber();
+
+  try {
+    const resolvedSecret = await channel.resolveSecret();
+    if ("error" in resolvedSecret) {
+      await channel.recordAttempt({
+        attemptNumber,
+        status: "failed",
+        error: resolvedSecret.error,
+        latencyMs: Date.now() - startedAt,
+      });
+      return false;
+    }
+
+    const signed = await signWebhookPayload(input.payload, resolvedSecret.secret);
+    const response = await fetch(channel.url, {
+      method: "POST",
+      headers: {
+        ...input.commonHeaders,
+        "X-Silo-Signature": signed.signature,
+        "X-Silo-Timestamp": String(signed.timestamp),
+      },
+      body: input.payload,
+    });
+
+    const responseBody = (await response.text().catch(() => "")).slice(0, 2000);
+    const latencyMs = Date.now() - startedAt;
+    if (response.ok) {
+      await channel.recordAttempt({
+        attemptNumber,
+        status: "success",
+        responseStatus: response.status,
+        responseBody,
+        latencyMs,
+      });
+      return false;
+    }
+
+    const retry = shouldRetryAttempt(attemptNumber, input.maxAttempts, response.status);
+    await channel.recordAttempt({
+      attemptNumber,
+      status: retry ? "retry" : "failed",
+      responseStatus: response.status,
+      responseBody,
+      error: `HTTP ${response.status}`,
+      latencyMs,
+    });
+    return retry;
+  } catch (error) {
+    const retry = shouldRetryAttempt(attemptNumber, input.maxAttempts);
+    await channel.recordAttempt({
+      attemptNumber,
+      status: retry ? "retry" : "failed",
+      error: error instanceof Error ? error.message : String(error),
+      latencyMs: Date.now() - startedAt,
+    });
+    return retry;
+  }
 }
 
 export const POST = handleCallback(async (rawQueueMessage, metadata) => {
-    const parsed = queuedWebhookMessageSchema.safeParse(rawQueueMessage);
-    if (!parsed.success) {
-      throw new Error("Invalid webhook queue message payload");
-    }
-    const queueMessage = parsed.data;
-    const queueMetadata = metadata as QueueMetadata | undefined;
+  const parsed = queuedWebhookMessageSchema.safeParse(rawQueueMessage);
+  if (!parsed.success) {
+    throw new Error("Invalid webhook queue message payload");
+  }
+  const queueMessage = parsed.data;
+  const queueMetadata = metadata as QueueMetadata | undefined;
 
-    if (!env.WEBHOOK_DELIVERY_ENABLED) {
-      return;
-    }
+  if (!env.WEBHOOK_DELIVERY_ENABLED) {
+    return;
+  }
 
-    const startedAt = Date.now();
-    const attemptNumber = await getNextAttemptNumber(db, queueMessage.event.id);
-    const maxAttempts = queueMessage.maxAttempts ?? 8;
-    const target = await getWebhookTargetForEvent(db, {
-      environmentId: queueMessage.environmentId,
-      eventType: queueMessage.event.type,
-    });
-    const fileKeyId =
-      queueMessage.event.data &&
-      typeof queueMessage.event.data === "object" &&
-      !Array.isArray(queueMessage.event.data)
-        ? (queueMessage.event.data as Record<string, unknown>).fileKeyId
-        : undefined;
-    const fileKey =
-      typeof fileKeyId === "string"
-        ? await db.query.fileKeys.findFirst({
-            where: and(
-              eq(fileKeys.id, fileKeyId),
-              eq(fileKeys.projectId, queueMessage.projectId),
-            ),
-            columns: {
-              callbackMetadata: true,
-            },
-          })
-        : null;
-    const callbackUrl = getCallbackUrlFromUnknown(fileKey?.callbackMetadata);
-    const payload = JSON.stringify(queueMessage.event);
+  const maxAttempts = queueMessage.maxAttempts ?? 8;
+  const payload = JSON.stringify(queueMessage.event);
+  const commonHeaders = {
+    "Content-Type": "application/json",
+    "User-Agent": "silo-webhooks/1.0",
+    "X-Silo-Webhook-Id": queueMessage.idempotencyKey,
+    "X-Silo-Event-Type": queueMessage.event.type,
+    "X-Silo-Event-Version": String(queueMessage.event.version),
+  };
+  const webhookTarget = await getWebhookTargetForEvent(db, {
+    environmentId: queueMessage.environmentId,
+    eventType: queueMessage.event.type,
+  });
+  const callbackTarget = await getFileCallbackTargetForEvent(db, {
+    projectId: queueMessage.projectId,
+    eventData: queueMessage.event.data,
+  });
 
-    const webhookUrl = target?.webhookUrl;
-    const webhookSecret = target?.webhookSecret;
-    if (!webhookUrl || !webhookSecret) {
-      await recordWebhookAttempt(db, {
-        eventId: queueMessage.event.id,
-        idempotencyKey: queueMessage.idempotencyKey,
-        queueMessageId: queueMetadata?.messageId,
-        environmentId: queueMessage.environmentId,
-        projectId: queueMessage.projectId,
-        attemptNumber,
-        status: "failed",
-        requestUrl: webhookUrl ?? "missing",
-        error: "Missing webhook URL or secret",
-        latencyMs: Date.now() - startedAt,
-      });
-      if (!callbackUrl) {
-        return;
-      }
-    }
+  const sharedAttemptFields = {
+    eventId: queueMessage.event.id,
+    idempotencyKey: queueMessage.idempotencyKey,
+    queueMessageId: queueMetadata?.messageId,
+    environmentId: queueMessage.environmentId,
+    projectId: queueMessage.projectId,
+  };
 
-    try {
-      if (webhookUrl && webhookSecret) {
-        const signed = await signWebhookPayload(payload, webhookSecret);
-        const response = await fetch(webhookUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "User-Agent": "silo-webhooks/1.0",
-            "X-Silo-Webhook-Id": queueMessage.idempotencyKey,
-            "X-Silo-Event-Type": queueMessage.event.type,
-            "X-Silo-Event-Version": String(queueMessage.event.version),
-            "X-Silo-Signature": signed.signature,
-            "X-Silo-Timestamp": String(signed.timestamp),
-          },
-          body: payload,
-        });
+  const channels: DeliveryChannel[] = [];
 
-        const responseBody = (await response.text().catch(() => "")).slice(0, 2000);
-        const latencyMs = Date.now() - startedAt;
-        if (response.ok) {
-          await recordWebhookAttempt(db, {
-            eventId: queueMessage.event.id,
-            idempotencyKey: queueMessage.idempotencyKey,
-            queueMessageId: queueMetadata?.messageId,
-            environmentId: queueMessage.environmentId,
-            projectId: queueMessage.projectId,
-            attemptNumber,
-            status: "success",
-            requestUrl: webhookUrl,
-            responseStatus: response.status,
-            responseBody,
-            latencyMs,
-          });
-        } else {
-          const retry = shouldRetryAttempt(
-            attemptNumber,
-            maxAttempts,
-            response.status,
-          );
-          await recordWebhookAttempt(db, {
-            eventId: queueMessage.event.id,
-            idempotencyKey: queueMessage.idempotencyKey,
-            queueMessageId: queueMetadata?.messageId,
-            environmentId: queueMessage.environmentId,
-            projectId: queueMessage.projectId,
-            attemptNumber,
-            status: retry ? "retry" : "failed",
-            requestUrl: webhookUrl,
-            responseStatus: response.status,
-            responseBody,
-            error: `HTTP ${response.status}`,
-            latencyMs,
-          });
-          if (retry) {
-            throw new Error(`Retryable webhook response: ${response.status}`);
-          }
-        }
-      }
-
-      if (callbackUrl) {
-        try {
-          const callbackResponse = await fetch(callbackUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "User-Agent": "silo-webhooks/1.0",
-              "X-Silo-Webhook-Id": queueMessage.idempotencyKey,
-              "X-Silo-Event-Type": queueMessage.event.type,
-              "X-Silo-Event-Version": String(queueMessage.event.version),
-            },
-            body: payload,
-          });
-
-          if (!callbackResponse.ok) {
-            const callbackBody = (
-              await callbackResponse.text().catch(() => "")
-            ).slice(0, 2000);
-            console.error("Callback URL delivery failed", {
-              eventId: queueMessage.event.id,
-              callbackUrl,
-              status: callbackResponse.status,
-              body: callbackBody,
-            });
-          }
-        } catch (callbackError) {
-          console.error("Callback URL delivery errored", {
-            eventId: queueMessage.event.id,
-            callbackUrl,
-            error:
-              callbackError instanceof Error
-                ? callbackError.message
-                : String(callbackError),
-          });
-        }
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const retry = shouldRetryAttempt(attemptNumber, maxAttempts);
-      if (webhookUrl && webhookSecret) {
-        await recordWebhookAttempt(db, {
-          eventId: queueMessage.event.id,
-          idempotencyKey: queueMessage.idempotencyKey,
-          queueMessageId: queueMetadata?.messageId,
-          environmentId: queueMessage.environmentId,
-          projectId: queueMessage.projectId,
-          attemptNumber,
-          status: retry ? "retry" : "failed",
+  const webhookUrl = webhookTarget?.webhookUrl;
+  const webhookSecret = webhookTarget?.webhookSecret;
+  if (webhookUrl && webhookSecret) {
+    channels.push({
+      url: webhookUrl,
+      getLatestStatus: async () =>
+        (await getLatestWebhookAttempt(db, queueMessage.event.id))?.status,
+      getNextAttemptNumber: async () =>
+        getNextAttemptNumber(db, queueMessage.event.id),
+      resolveSecret: () => Promise.resolve({ secret: webhookSecret }),
+      recordAttempt: async (attempt) =>
+        webhookAttempt(db, {
+          ...sharedAttemptFields,
+          attemptNumber: attempt.attemptNumber,
+          status: attempt.status,
           requestUrl: webhookUrl,
-          error: errorMessage,
-          latencyMs: Date.now() - startedAt,
+          responseStatus: attempt.responseStatus,
+          responseBody: attempt.responseBody,
+          error: attempt.error,
+          latencyMs: attempt.latencyMs,
+        }),
+    });
+  }
+
+  if (callbackTarget?.callbackUrl) {
+    channels.push({
+      url: callbackTarget.callbackUrl,
+      getLatestStatus: async () =>
+        (await getLatestCallbackAttempt(db, queueMessage.event.id))?.status,
+      getNextAttemptNumber: async () =>
+        getNextCallbackAttemptNumber(db, queueMessage.event.id),
+      resolveSecret: async () => {
+        if (!callbackTarget.callbackApiKeyId) {
+          return { error: "Missing callback apiKeyId for signing" };
+        }
+
+        const apiKey = await db.query.apiKeys.findFirst({
+          where: eq(apiKeys.id, callbackTarget.callbackApiKeyId),
+          columns: {
+            keyHash: true,
+          },
         });
-      }
-      if (retry) throw error;
-    }
-  },
-);
+        if (!apiKey?.keyHash) {
+          return { error: "Callback API key not found" };
+        }
+
+        const callbackSecret = await deriveSigningSecretFromApiKeyHash(
+          env.SIGNING_SECRET,
+          apiKey.keyHash,
+        );
+        return { secret: callbackSecret };
+      },
+      recordAttempt: async (attempt) =>
+        recordCallbackAttempt(db, {
+          ...sharedAttemptFields,
+          callbackUrl: callbackTarget.callbackUrl,
+          attemptNumber: attempt.attemptNumber,
+          status: attempt.status,
+          responseStatus: attempt.responseStatus,
+          responseBody: attempt.responseBody,
+          error: attempt.error,
+          latencyMs: attempt.latencyMs,
+        }),
+    });
+  }
+
+  let shouldRetryAny = false;
+  for (const channel of channels) {
+    const retry = await deliverChannel(channel, {
+      payload,
+      maxAttempts,
+      commonHeaders,
+    });
+    shouldRetryAny = shouldRetryAny || retry;
+  }
+
+  if (shouldRetryAny) {
+    throw new Error("Retry required for webhook/callback delivery");
+  }
+});

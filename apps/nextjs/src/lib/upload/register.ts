@@ -60,6 +60,7 @@ function mergeCallbackMetadata(
   input: {
     callbackUrl?: string;
     callbackMetadata?: Record<string, unknown>;
+    apiKeyId?: string;
   },
 ): FileKeyMetadata | null {
   const existingObject =
@@ -73,6 +74,12 @@ function mergeCallbackMetadata(
 
   if (input.callbackUrl) {
     merged.callbackUrl = input.callbackUrl;
+  }
+  if (
+    input.apiKeyId &&
+    (input.callbackUrl || input.callbackMetadata || Object.keys(existingObject).length > 0)
+  ) {
+    merged.apiKeyId = input.apiKeyId;
   }
   if (input.callbackMetadata) {
     Object.assign(merged, input.callbackMetadata);
@@ -99,6 +106,7 @@ export async function registerFileKeyIntent(input: {
   requestMetadata?: Record<string, unknown>;
   callbackUrl?: string;
   callbackMetadata?: Record<string, unknown>;
+  apiKeyId?: string;
 }) {
   return db.transaction(async (tx) => {
     await lockFileKey(tx, input.fileKey.fileKeyId);
@@ -126,6 +134,7 @@ export async function registerFileKeyIntent(input: {
       {
         callbackUrl: input.callbackUrl,
         callbackMetadata: input.callbackMetadata,
+        apiKeyId: input.apiKeyId,
       },
     );
 

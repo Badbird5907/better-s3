@@ -1,7 +1,12 @@
 import { send } from "@vercel/queue";
 import type { Db } from "@silo-storage/db/client";
-import { eq } from "@silo-storage/db";
-import { projectEnvironments, webhookAttempts } from "@silo-storage/db/schema";
+import { and, eq } from "@silo-storage/db";
+import {
+  callbackAttempts,
+  fileKeys,
+  projectEnvironments,
+  webhookAttempts,
+} from "@silo-storage/db/schema";
 import type { UploadEventEnvelope } from "@silo-storage/shared";
 import { z } from "zod";
 
@@ -29,6 +34,48 @@ export const queuedWebhookMessageSchema = z.object({
     data: z.unknown(),
   }),
 });
+
+function getStringField(value: unknown, key: string): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const candidate = (value as Record<string, unknown>)[key];
+  return typeof candidate === "string" && candidate.length > 0 ? candidate : null;
+}
+
+function getFileKeyIdFromEventData(data: unknown): string | null {
+  return getStringField(data, "fileKeyId");
+}
+
+export async function getFileCallbackTargetForEvent(
+  db: Db,
+  input: {
+    projectId: string;
+    eventData: unknown;
+  },
+) {
+  const fileKeyId = getFileKeyIdFromEventData(input.eventData);
+  if (!fileKeyId) {
+    return null;
+  }
+
+  const fileKey = await db.query.fileKeys.findFirst({
+    where: and(eq(fileKeys.id, fileKeyId), eq(fileKeys.projectId, input.projectId)),
+    columns: {
+      callbackMetadata: true,
+    },
+  });
+
+  const callbackUrl = getStringField(fileKey?.callbackMetadata, "callbackUrl");
+  if (!callbackUrl) {
+    return null;
+  }
+
+  return {
+    callbackUrl,
+    callbackApiKeyId: getStringField(fileKey?.callbackMetadata, "apiKeyId"),
+  };
+}
 
 
 function environmentAllowsEvent(
@@ -89,7 +136,14 @@ export async function enqueueUploadWebhookEvent(
       : [],
   };
 
-  if (!environmentAllowsEvent(normalizedEnvironment, input.event.type)) {
+  const webhookAllowed = environmentAllowsEvent(normalizedEnvironment, input.event.type);
+  const callbackTarget = await getFileCallbackTargetForEvent(db, {
+    projectId: input.projectId,
+    eventData: input.event.data,
+  });
+  const callbackAllowed = !!callbackTarget;
+
+  if (!webhookAllowed && !callbackAllowed) {
     console.log("event not allowed", input.event.type);
     return { enqueued: false as const, reason: "not_configured" as const };
   }
@@ -158,7 +212,7 @@ export async function getWebhookTargetForEvent(
   };
 }
 
-export async function recordWebhookAttempt(
+export async function webhookAttempt(
   db: Db,
   input: typeof webhookAttempts.$inferInsert,
 ) {
@@ -166,7 +220,15 @@ export async function recordWebhookAttempt(
   await db.insert(webhookAttempts).values(input);
 }
 
-export async function getNextAttemptNumber(
+export async function recordCallbackAttempt(
+  db: Db,
+  input: typeof callbackAttempts.$inferInsert,
+) {
+  console.log("recording callback attempt", input);
+  await db.insert(callbackAttempts).values(input);
+}
+
+export async function getLatestWebhookAttempt(
   db: Db,
   eventId: string,
 ) {
@@ -175,6 +237,34 @@ export async function getNextAttemptNumber(
     orderBy: (attempts, { desc: byDesc }) => [byDesc(attempts.attemptNumber)],
     limit: 1,
   });
+  return lastAttempt ?? null;
+}
+
+export async function getNextAttemptNumber(
+  db: Db,
+  eventId: string,
+) {
+  const lastAttempt = await getLatestWebhookAttempt(db, eventId);
+  return (lastAttempt?.attemptNumber ?? 0) + 1;
+}
+
+export async function getLatestCallbackAttempt(
+  db: Db,
+  eventId: string,
+) {
+  const [lastAttempt] = await db.query.callbackAttempts.findMany({
+    where: eq(callbackAttempts.eventId, eventId),
+    orderBy: (attempts, { desc: byDesc }) => [byDesc(attempts.attemptNumber)],
+    limit: 1,
+  });
+  return lastAttempt ?? null;
+}
+
+export async function getNextCallbackAttemptNumber(
+  db: Db,
+  eventId: string,
+) {
+  const lastAttempt = await getLatestCallbackAttempt(db, eventId);
   return (lastAttempt?.attemptNumber ?? 0) + 1;
 }
 
@@ -218,4 +308,25 @@ export async function signWebhookPayload(
     timestamp,
     signature: `t=${timestamp},v1=${digest}`,
   };
+}
+
+export async function deriveSigningSecretFromApiKeyHash(
+  signingSecret: string,
+  keyHash: string,
+) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(signingSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const derivedSecretBuffer = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(keyHash),
+  );
+  return Array.from(new Uint8Array(derivedSecretBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }

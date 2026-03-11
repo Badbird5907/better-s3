@@ -124,6 +124,7 @@ export async function POST(request: Request) {
       requestMetadata: metadata,
       callbackUrl,
       callbackMetadata,
+      apiKeyId: authResult.apiKeyId,
     });
 
     if (isDev) {

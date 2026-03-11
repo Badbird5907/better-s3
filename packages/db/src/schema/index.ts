@@ -283,35 +283,56 @@ export const webhookAttemptStatus = pgEnum("webhook_attempt_status", [
   "failed",
 ]);
 
+// for all types of webhooks (webhook/callback) 
+const deliveryAttemptSharedColumns = {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => nanoid()),
+  eventId: text("event_id").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  queueMessageId: text("queue_message_id"),
+  environmentId: text("environment_id")
+    .references(() => projectEnvironments.id, { onDelete: "cascade" })
+    .notNull(),
+  projectId: text("project_id")
+    .references(() => projects.id, { onDelete: "cascade" })
+    .notNull(),
+  attemptNumber: integer("attempt_number").notNull(),
+  status: webhookAttemptStatus("status").notNull(),
+  responseStatus: integer("response_status"),
+  responseBody: text("response_body"),
+  error: text("error"),
+  latencyMs: integer("latency_ms"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+};
+
 export const webhookAttempts = pgTable(
   "webhook_attempts",
   {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => nanoid()),
+    ...deliveryAttemptSharedColumns,
     webhookJobId: text("webhook_job_id"),
-    eventId: text("event_id").notNull(),
-    idempotencyKey: text("idempotency_key").notNull(),
-    queueMessageId: text("queue_message_id"),
-    environmentId: text("environment_id")
-      .references(() => projectEnvironments.id, { onDelete: "cascade" })
-      .notNull(),
-    projectId: text("project_id")
-      .references(() => projects.id, { onDelete: "cascade" })
-      .notNull(),
-    attemptNumber: integer("attempt_number").notNull(),
-    status: webhookAttemptStatus("status").notNull(),
     requestUrl: text("request_url").notNull(),
-    responseStatus: integer("response_status"),
-    responseBody: text("response_body"),
-    error: text("error"),
-    latencyMs: integer("latency_ms"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
     index("webhook_attempts_event_idx").on(table.eventId),
     index("webhook_attempts_idempotency_idx").on(table.idempotencyKey),
     uniqueIndex("webhook_attempts_event_attempt_idx").on(
+      table.eventId,
+      table.attemptNumber,
+    ),
+  ],
+);
+
+export const callbackAttempts = pgTable(
+  "callback_attempts",
+  {
+    ...deliveryAttemptSharedColumns,
+    callbackUrl: text("callback_url").notNull(),
+  },
+  (table) => [
+    index("callback_attempts_event_idx").on(table.eventId),
+    index("callback_attempts_idempotency_idx").on(table.idempotencyKey),
+    uniqueIndex("callback_attempts_event_attempt_idx").on(
       table.eventId,
       table.attemptNumber,
     ),
@@ -433,6 +454,17 @@ export const webhookAttemptsRelations = relations(webhookAttempts, ({ one }) => 
   }),
   project: one(projects, {
     fields: [webhookAttempts.projectId],
+    references: [projects.id],
+  }),
+}));
+
+export const callbackAttemptsRelations = relations(callbackAttempts, ({ one }) => ({
+  environment: one(projectEnvironments, {
+    fields: [callbackAttempts.environmentId],
+    references: [projectEnvironments.id],
+  }),
+  project: one(projects, {
+    fields: [callbackAttempts.projectId],
     references: [projects.id],
   }),
 }));

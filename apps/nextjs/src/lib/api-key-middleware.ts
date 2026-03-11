@@ -60,6 +60,7 @@ export interface AuthContext {
   organizationId: string;
   projectId?: string;
   rawApiKey?: string;
+  apiKeyId?: string;
   userId?: string;
 }
 
@@ -94,6 +95,7 @@ export async function authenticateRequest(
         organizationId: key.organizationId,
         projectId: key.projectId,
         rawApiKey: apiKey,
+        apiKeyId: key.id,
       };
     } catch (error) {
       console.error("Error validating API key:", error);
