@@ -58,6 +58,7 @@ export interface UploadCallbackData {
         adapterKey: string;
         projectId: string;
         isPublic: boolean;
+        metadata?: Record<string, unknown>;
       }
     | {
         environmentId: string;

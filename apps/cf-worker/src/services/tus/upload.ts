@@ -128,6 +128,7 @@ export async function finalizeUpload(
           adapterKey: metadata.adapterKey,
           projectId: metadata.projectId,
           isPublic: metadata.isPublic,
+          metadata: metadata.metadata,
         },
       },
       c.env,

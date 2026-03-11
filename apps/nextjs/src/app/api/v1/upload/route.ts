@@ -10,6 +10,8 @@ import {
   validateEnvironmentAccess,
   validateProjectAccess,
 } from "@/lib/api-key-middleware";
+import { createDevUploadEventStream } from "@/lib/upload/dev-sse";
+import { registerFileKeyIntent } from "@/lib/upload/register";
 
 const schema = z.object({
   projectId: z.string(),
@@ -21,6 +23,10 @@ const schema = z.object({
   hash: z.string().optional(),
   isPublic: z.boolean().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  callbackUrl: z.url().optional(),
+  callbackMetadata: z.record(z.string(), z.unknown()).optional(),
+  awaitServerData: z.boolean().optional(),
+  dev: z.boolean().optional(),
 
 });
 
@@ -64,7 +70,11 @@ export async function POST(request: Request) {
     mimeType,
     hash,
     isPublic,
-    metadata: _metadata,
+    metadata,
+    callbackUrl,
+    callbackMetadata,
+    awaitServerData,
+    dev: isDev,
   } = result.data;
 
   const project = await validateProjectAccess(authResult, projectId);
@@ -99,6 +109,48 @@ export async function POST(request: Request) {
       apiKey,
       env.SIGNING_SECRET,
     );
+
+    await registerFileKeyIntent({
+      projectId,
+      environmentId,
+      fileKey: {
+        fileKeyId,
+        accessKey,
+        fileName,
+        size,
+        mimeType,
+        hash,
+        isPublic: resolvedIsPublic,
+        metadata,
+      },
+      requestMetadata: metadata,
+      callbackUrl,
+      callbackMetadata,
+      awaitServerData,
+    });
+
+    if (isDev) {
+      if (!env.DEV_UPLOAD_SSE_ENABLED) {
+        return jsonError(
+          "Service Unavailable",
+          "SSE upload events are disabled.",
+          503,
+        );
+      }
+      if (environment.type !== "development") {
+        return jsonError(
+          "Not Found",
+          "SSE upload events are only available for development environments.",
+          404,
+        );
+      }
+
+      return createDevUploadEventStream(request, {
+        projectId,
+        environmentId,
+        fileKeyId,
+      });
+    }
 
     return new Response(
       JSON.stringify({

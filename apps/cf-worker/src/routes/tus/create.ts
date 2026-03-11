@@ -184,6 +184,7 @@ export async function handleTusCreate(
             adapterKey,
             projectId,
             isPublic: verificationResult.isPublic ?? false,
+            metadata,
           },
         },
         c.env,

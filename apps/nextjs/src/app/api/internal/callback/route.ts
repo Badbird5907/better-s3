@@ -8,8 +8,6 @@ import {
 import { eq, sql } from "@silo/db";
 import { db } from "@silo/db/client";
 import {
-  fileKeys,
-  files,
   projectEnvironments,
   projects,
   usageDaily,
@@ -17,19 +15,9 @@ import {
 } from "@silo/db/schema";
 import { publishMessage } from "@silo/redis";
 import { createUploadEventEnvelope } from "@silo/shared";
+import { completeFileKeyFromCallback } from "@/lib/upload/register";
 
 import { env } from "../../../../env";
-
-/**
- * Callback endpoint for the Cloudflare Worker to report upload completion or failure.
- *
- * New flow:
- * 1. Worker receives upload with signed URL
- * 2. Worker calls /api/internal/verify-signature to validate the signature
- * 3. Worker uploads file to S3
- * 4. Worker calls this callback with the result
- * 5. This endpoint creates/updates the fileKey and file records
- */
 
 const schema = z.union([
   z.object({
@@ -48,6 +36,7 @@ const schema = z.union([
       adapterKey: z.string(),
       projectId: z.string(),
       isPublic: z.boolean().optional(),
+      metadata: z.record(z.string(), z.unknown()).optional(),
     }),
   }),
   z.object({
@@ -166,76 +155,36 @@ export async function POST(request: Request) {
         );
       }
 
-      // TODO: Add deduplication logic here (find existing file by hash)
-      const [file] = await db
-        .insert(files)
-        .values({
-          hash: data.actualHash,
-          mimeType: data.actualMimeType,
-          size: data.actualSize,
-          adapterKey: data.adapterKey,
-          environmentId: data.environmentId,
-          projectId: data.projectId,
-        })
-        .returning();
-
-      if (!file) {
-        return new Response(
-          JSON.stringify({ error: "Failed to create file record" }),
-          { status: 500, headers: { "Content-Type": "application/json" } },
-        );
-      }
-
-      const existingFileKey = await db.query.fileKeys.findFirst({
-        where: eq(fileKeys.id, data.fileKeyId),
+      const completion = await completeFileKeyFromCallback({
+        projectId: data.projectId,
+        environmentId: data.environmentId,
+        fileKeyId: data.fileKeyId,
+        accessKey: data.accessKey,
+        fileName: data.fileName,
+        claimedSize: data.claimedSize,
+        claimedMimeType: data.claimedMimeType,
+        claimedHash: data.claimedHash,
+        isPublic: data.isPublic,
+        actualSize: data.actualSize,
+        actualMimeType: data.actualMimeType,
+        actualHash: data.actualHash,
+        adapterKey: data.adapterKey,
+        metadata: data.metadata,
       });
 
-      let fileKey;
-      if (existingFileKey) {
-        const [updated] = await db
-          .update(fileKeys)
-          .set({
-            fileId: file.id,
-            fileName: data.fileName,
-            claimedHash: data.claimedHash,
-            claimedMimeType: data.claimedMimeType,
-            claimedSize: data.claimedSize,
-            status: "completed",
-            uploadCompletedAt: new Date(),
-            uploadFailedAt: null,
-            isPublic: data.isPublic ?? false,
-          })
-          .where(eq(fileKeys.id, data.fileKeyId))
-          .returning();
-        fileKey = updated;
-      } else {
-        const [created] = await db
-          .insert(fileKeys)
-          .values({
-            id: data.fileKeyId,
-            accessKey: data.accessKey,
-            fileName: data.fileName,
-            fileId: file.id,
-            environmentId: data.environmentId,
-            projectId: data.projectId,
-            metadata: {},
-            claimedHash: data.claimedHash,
-            claimedMimeType: data.claimedMimeType,
-            claimedSize: data.claimedSize,
-            status: "completed",
-            uploadCompletedAt: new Date(),
-            isPublic: data.isPublic ?? false,
-          })
-          .returning();
-        fileKey = created;
-      }
-
-      if (!fileKey) {
+      if (completion.alreadyFailed) {
         return new Response(
-          JSON.stringify({ error: "Failed to create/update fileKey record" }),
-          { status: 500, headers: { "Content-Type": "application/json" } },
+          JSON.stringify({
+            success: true,
+            status: "failed",
+            note: "File key already failed; completion callback ignored.",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
+
+      const file = completion.file;
+      const fileKey = completion.fileKey;
 
       const uploadCompletedEvent = createUploadEventEnvelope(
         "upload.completed",
@@ -259,24 +208,28 @@ export async function POST(request: Request) {
         console.error("Failed to publish upload completion message:", pubError);
       }
 
-      try {
-        await enqueueUploadWebhookEvent(db, {
-          environmentId: data.environmentId,
-          projectId: data.projectId,
-          event: uploadCompletedEvent,
-          idempotencyKey: uploadCompletedEvent.id,
-        });
-      } catch (enqueueError) {
-        console.error("Failed to enqueue upload completion webhook:", enqueueError);
+      if (!completion.alreadyCompleted) {
+        try {
+          await enqueueUploadWebhookEvent(db, {
+            environmentId: data.environmentId,
+            projectId: data.projectId,
+            event: uploadCompletedEvent,
+            idempotencyKey: uploadCompletedEvent.id,
+          });
+        } catch (enqueueError) {
+          console.error("Failed to enqueue upload completion webhook:", enqueueError);
+        }
       }
 
-      void trackUsageEvent(
-        "upload_completed",
-        data.projectId,
-        data.environmentId,
-        data.actualSize,
-        file.id,
-      );
+      if (!completion.alreadyCompleted) {
+        void trackUsageEvent(
+          "upload_completed",
+          data.projectId,
+          data.environmentId,
+          data.actualSize,
+          file.id,
+        );
+      }
 
       return new Response(
         JSON.stringify({

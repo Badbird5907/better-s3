@@ -169,7 +169,7 @@ export const environmentRouter = {
       z.object({
         id: z.string(),
         enabled: z.boolean().optional(),
-        webhookUrl: z.string().url().nullable().optional(),
+        webhookUrl: z.url().nullable().optional(),
         webhookEvents: z.array(webhookEventsSchema).min(1).optional(),
       }),
     )
