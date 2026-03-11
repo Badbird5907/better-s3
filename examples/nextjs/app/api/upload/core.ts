@@ -34,6 +34,7 @@ export const fileRouter = {
       };
     })
     .onUploadComplete(async ({ metadata, file }) => {
+      console.info("[onUploadComplete]", { metadata, file });
       return {
         uploadedBy: metadata.userId,
         fileKeyId: file.fileKeyId,

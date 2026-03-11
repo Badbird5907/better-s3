@@ -1,36 +1,76 @@
 import type { Context } from "hono";
 
-import type { Bindings, Variables } from "../../types/bindings";
+import type { Bindings, Variables } from "../types/bindings";
+import type { TusUploadMetadata } from "../types/tus";
 import {
   sendUploadCallback,
   verifyUploadSignature,
-} from "../../services/callback";
-import {
-  deleteUploadMetadata,
-  generateExpirationDate,
-  storeUploadMetadata,
-} from "../../services/tus/metadata";
-import { processUploadChunk } from "../../services/tus/upload";
+} from "../services/callback";
+import { generateExpirationDate } from "../services/tus/metadata";
+import { TUS_EXTENSIONS } from "../types/tus";
 import {
   CONTENT_TYPE_OCTET_STREAM,
   HTTP_STATUS,
+  TUS_SUPPORTED_VERSIONS_STRING,
   TUS_VERSION,
   UPLOAD_DEFER_LENGTH_HEADER,
   UPLOAD_LENGTH_HEADER,
   UPLOAD_METADATA_HEADER,
   UPLOAD_OFFSET_HEADER,
-} from "../../utils/constants";
-import { Errors } from "../../utils/errors";
+} from "../utils/constants";
+import { Errors } from "../utils/errors";
 import {
   isValidBase64,
   isValidMetadataKey,
   parseNonNegativeInt,
   sanitizeHeaderValue,
-} from "../../utils/validation";
+} from "../utils/validation";
 
-export async function handleTusCreate(
-  c: Context<{ Bindings: Bindings; Variables: Variables }>,
-): Promise<Response> {
+type AppContext = Context<{ Bindings: Bindings; Variables: Variables }>;
+
+export function handleTusOptions(c: AppContext): Response {
+  return new Response(null, {
+    status: HTTP_STATUS.NO_CONTENT,
+    headers: {
+      "Tus-Resumable": TUS_VERSION,
+      "Tus-Version": TUS_SUPPORTED_VERSIONS_STRING,
+      "Tus-Extension": TUS_EXTENSIONS.join(","),
+      "Tus-Max-Size": c.env.TUS_MAX_SIZE,
+      "Access-Control-Allow-Methods": "POST, GET, HEAD, PATCH, DELETE, OPTIONS",
+      "Access-Control-Max-Age": "86400",
+    },
+  });
+}
+
+export async function handleTusHead(c: AppContext): Promise<Response> {
+  return await proxyTusHeadToDo(
+    c.req.param("uploadId"),
+    c.get("projectId"),
+    c.req.raw.headers,
+    c.env,
+  );
+}
+
+export async function handleTusPatch(c: AppContext): Promise<Response> {
+  return await proxyTusPatchToDo(
+    c.req.param("uploadId"),
+    c.get("projectId"),
+    c.req.raw.headers,
+    c.req.raw.body as ReadableStream<Uint8Array> | null,
+    c.env,
+  );
+}
+
+export async function handleTusDelete(c: AppContext): Promise<Response> {
+  return await proxyTusDeleteToDo(
+    c.req.param("uploadId"),
+    c.get("projectId"),
+    c.req.raw.headers,
+    c.env,
+  );
+}
+
+export async function handleTusCreate(c: AppContext): Promise<Response> {
   const tusResumable = c.req.header("Tus-Resumable");
   if (tusResumable !== TUS_VERSION) {
     throw Errors.invalidTusVersion(TUS_VERSION, tusResumable);
@@ -134,7 +174,7 @@ export async function handleTusCreate(
     const uploadId = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
     const adapterKey = `${projectId}/${environmentId}/${crypto.randomUUID()}`;
 
-    const uploadMetadata = {
+    const uploadMetadata: TusUploadMetadata = {
       uploadId,
       projectId,
       environmentId,
@@ -154,19 +194,15 @@ export async function handleTusCreate(
       expiresAt: generateExpirationDate(c.env),
       metadata,
       rawMetadata: uploadMetadataHeader ?? "",
+      callbackDeliveredAt: null,
     };
-
-    await storeUploadMetadata(uploadMetadata, c.env);
 
     const url = new URL(c.req.url);
     const uploadUrl = `${url.protocol}//${url.host}/ingest/tus/${uploadId}`;
 
-    // Handle zero-length uploads - immediately complete without requiring PATCH
     if (uploadLength === 0) {
-      // Create empty file in R2
       await c.env.R2_BUCKET.put(adapterKey, new Uint8Array(0));
 
-      // Send completion callback
       await sendUploadCallback(
         {
           type: "upload-completed",
@@ -190,8 +226,6 @@ export async function handleTusCreate(
         c.env,
       );
 
-      await deleteUploadMetadata(uploadId, c.env);
-
       return new Response(null, {
         status: HTTP_STATUS.CREATED,
         headers: {
@@ -203,28 +237,25 @@ export async function handleTusCreate(
       });
     }
 
+    await initializeUploadInDo(uploadId, uploadMetadata, c.env);
+
     const bodyContentLength = parseNonNegativeInt(contentLengthHeader) ?? 0;
     const body = c.req.raw.body as ReadableStream<Uint8Array> | null;
 
     if (isCreationWithUpload && bodyContentLength > 0 && body) {
-      const result = await processUploadChunk({
-        metadata: uploadMetadata,
+      const patchHeaders = new Headers(c.req.raw.headers);
+      patchHeaders.set(UPLOAD_OFFSET_HEADER, "0");
+      const patchResponse = await proxyTusPatchToDo(
+        uploadId,
+        projectId,
+        patchHeaders,
         body,
-        contentLength: bodyContentLength,
-        c,
-      });
-
-      if (result.response) {
-        return new Response(null, {
-          status: HTTP_STATUS.CREATED,
-          headers: {
-            "Tus-Resumable": TUS_VERSION,
-            Location: uploadUrl,
-            "Upload-Expires": uploadMetadata.expiresAt,
-            [UPLOAD_OFFSET_HEADER]: result.newOffset.toString(),
-          },
-        });
+        c.env,
+      );
+      if (!patchResponse.ok) {
+        return patchResponse;
       }
+      const nextOffset = patchResponse.headers.get(UPLOAD_OFFSET_HEADER) ?? "0";
 
       return new Response(null, {
         status: HTTP_STATUS.CREATED,
@@ -232,7 +263,7 @@ export async function handleTusCreate(
           "Tus-Resumable": TUS_VERSION,
           Location: uploadUrl,
           "Upload-Expires": uploadMetadata.expiresAt,
-          [UPLOAD_OFFSET_HEADER]: result.newOffset.toString(),
+          [UPLOAD_OFFSET_HEADER]: nextOffset,
         },
       });
     }
@@ -254,15 +285,134 @@ export async function handleTusCreate(
   }
 }
 
+function getTusUploadStub(uploadId: string, env: Bindings): DurableObjectStub {
+  const id = env.TUS_STATE_DO.idFromName(uploadId);
+  return env.TUS_STATE_DO.get(id);
+}
+
+async function initializeUploadInDo(
+  uploadId: string,
+  metadata: TusUploadMetadata,
+  env: Bindings,
+): Promise<void> {
+  const response = await getTusUploadStub(uploadId, env).fetch(
+    "https://tus-state.internal/internal/init",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ metadata }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to initialize upload in DO: ${response.status}`);
+  }
+}
+
+async function proxyTusHeadToDo(
+  uploadId: string,
+  projectId: string,
+  requestHeaders: Headers,
+  env: Bindings,
+): Promise<Response> {
+  const headers = new Headers(requestHeaders);
+  headers.set("X-Project-Id", projectId);
+  headers.set("X-Upload-Id", uploadId);
+
+  let response: Response;
+  try {
+    response = await getTusUploadStub(uploadId, env).fetch(
+      new Request("https://tus-state.internal/internal/head", {
+        method: "GET",
+        headers,
+      }),
+    );
+  } catch (error) {
+    console.error("[tus-proxy] HEAD stub.fetch failed", {
+      uploadId,
+      projectId,
+      sourceStatus: "throw",
+      error,
+    });
+    return new Response(null, {
+      status: 503,
+      headers: {
+        "Tus-Resumable": TUS_VERSION,
+        "Retry-After": "2",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  if (response.status === HTTP_STATUS.NOT_FOUND) {
+    console.warn("[tus-proxy] HEAD got 404 from DO, converting to 503", {
+      uploadId,
+      projectId,
+      sourceStatus: response.status,
+    });
+    return new Response(null, {
+      status: 503,
+      headers: {
+        "Tus-Resumable": TUS_VERSION,
+        "Retry-After": "2",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  return response;
+}
+
+async function proxyTusPatchToDo(
+  uploadId: string,
+  projectId: string,
+  requestHeaders: Headers,
+  body: ReadableStream<Uint8Array> | null,
+  env: Bindings,
+): Promise<Response> {
+  const headers = new Headers(requestHeaders);
+  headers.set("X-Project-Id", projectId);
+  headers.set("X-Upload-Id", uploadId);
+  return await getTusUploadStub(uploadId, env).fetch(
+    new Request("https://tus-state.internal/internal/patch", {
+      method: "PATCH",
+      headers,
+      body,
+      duplex: "half",
+    } as RequestInit),
+  );
+}
+
+async function proxyTusDeleteToDo(
+  uploadId: string,
+  projectId: string,
+  requestHeaders: Headers,
+  env: Bindings,
+): Promise<Response> {
+  const headers = new Headers(requestHeaders);
+  headers.set("X-Project-Id", projectId);
+  headers.set("X-Upload-Id", uploadId);
+  return await getTusUploadStub(uploadId, env).fetch(
+    new Request("https://tus-state.internal/internal/delete", {
+      method: "DELETE",
+      headers,
+    }),
+  );
+}
+
 function parseUploadMetadata(header: string): Record<string, string> {
   const metadata: Record<string, string> = {};
 
-  if (!header) return metadata;
+  if (!header) {
+    return metadata;
+  }
 
   const pairs = header.split(",");
   for (const pair of pairs) {
     const trimmed = pair.trim();
-    if (!trimmed) continue;
+    if (!trimmed) {
+      continue;
+    }
 
     const spaceIndex = trimmed.indexOf(" ");
     const key = spaceIndex === -1 ? trimmed : trimmed.substring(0, spaceIndex);

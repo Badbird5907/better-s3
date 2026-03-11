@@ -2,8 +2,8 @@ import type { DeletePrefixQueueMessage } from "../services/r2/delete-prefix";
 
 export interface Bindings {
   R2_BUCKET: R2Bucket;
-  TUS_METADATA: KVNamespace;
-  TUS_EXPIRATION: KVNamespace;
+  PROJECT_CACHE: KVNamespace;
+  TUS_STATE_DO: DurableObjectNamespace;
   DELETE_PREFIX_QUEUE: {
     send(message: DeletePrefixQueueMessage): Promise<void>;
   };

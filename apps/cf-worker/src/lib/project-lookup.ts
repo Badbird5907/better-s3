@@ -9,7 +9,7 @@ export async function lookupProject(
   const cacheKey = `project:slug:${slug}`;
 
   try {
-    const cached = await env.TUS_METADATA.get(cacheKey, "json");
+    const cached = await env.PROJECT_CACHE.get(cacheKey, "json");
     if (cached) {
       return cached as ProjectInfo;
     }
@@ -42,7 +42,7 @@ export async function lookupProject(
     const project: ProjectInfo = await response.json();
 
     try {
-      await env.TUS_METADATA.put(cacheKey, JSON.stringify(project), {
+      await env.PROJECT_CACHE.put(cacheKey, JSON.stringify(project), {
         expirationTtl: 3600, // 1h
       });
     } catch (error) {
@@ -64,5 +64,5 @@ export async function invalidateProjectCache(
   env: Bindings,
 ): Promise<void> {
   const cacheKey = `project:slug:${slug}`;
-  await env.TUS_METADATA.delete(cacheKey);
+  await env.PROJECT_CACHE.delete(cacheKey);
 }

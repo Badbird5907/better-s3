@@ -1,0 +1,583 @@
+import type { Bindings } from "../types/bindings";
+import type { TusUploadMetadata } from "../types/tus";
+import { readHeaderBytes } from "../lib/hash";
+import { areMimeTypesEquivalent, detectMimeType } from "../lib/mime";
+import { sendUploadCallback } from "../services/callback";
+import {
+  abortMultipartUpload,
+  completeMultipartUpload,
+  uploadChunkToR2,
+} from "../services/r2/upload";
+import { isUploadExpired } from "../services/tus/metadata";
+import { isRetryableError, retry } from "../services/tus/retry";
+import {
+  CONTENT_TYPE_OCTET_STREAM,
+  HTTP_STATUS,
+  TUS_VERSION,
+  UPLOAD_DEFER_LENGTH_HEADER,
+  UPLOAD_EXPIRES_HEADER,
+  UPLOAD_LENGTH_HEADER,
+  UPLOAD_METADATA_HEADER,
+  UPLOAD_OFFSET_HEADER,
+} from "../utils/constants";
+import { createErrorResponse, Errors, TusError } from "../utils/errors";
+import { parseNonNegativeInt, sanitizeHeaderValue } from "../utils/validation";
+
+const METADATA_KEY = "upload:metadata";
+
+export class TusStateDO {
+  private queue: Promise<void> = Promise.resolve();
+
+  constructor(
+    private readonly state: DurableObjectState,
+    private readonly env: Bindings,
+  ) {}
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    try {
+      switch (url.pathname) {
+        case "/internal/init":
+          if (request.method === "POST") {
+            return await this.inLock(() => this.handleInit(request));
+          }
+          break;
+        case "/internal/head":
+          if (request.method === "GET" || request.method === "HEAD") {
+            return await this.handleHead(request);
+          }
+          break;
+        case "/internal/patch":
+          if (request.method === "PATCH") {
+            return await this.inLock(() => this.handlePatch(request));
+          }
+          break;
+        case "/internal/delete":
+          if (request.method === "DELETE") {
+            return await this.inLock(() => this.handleDelete(request));
+          }
+          break;
+      }
+
+      return new Response("Not found", { status: HTTP_STATUS.NOT_FOUND });
+    } catch (error) {
+      const response = createErrorResponse(error as TusError | Error);
+      const headers = new Headers(response.headers);
+      if (url.pathname === "/internal/head") {
+        headers.set("Cache-Control", "no-store");
+      }
+      return new Response(response.body, { status: response.status, headers });
+    }
+  }
+
+  private assertTusVersion(request: Request): void {
+    const tusResumable = request.headers.get("Tus-Resumable");
+    if (tusResumable !== TUS_VERSION) {
+      throw Errors.invalidTusVersion(TUS_VERSION, tusResumable ?? undefined);
+    }
+  }
+
+  private async inLock(fn: () => Promise<Response>): Promise<Response> {
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const previous = this.queue;
+    this.queue = previous.then(() => waiting);
+    await previous;
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  }
+
+  private async handleInit(request: Request): Promise<Response> {
+    const body: { metadata?: TusUploadMetadata } = await request.json();
+    if (!body.metadata) {
+      throw Errors.invalidRequest("Missing metadata payload");
+    }
+    await this.persistMetadata(body.metadata);
+    this.logEvent("upload_initialized", body.metadata, {
+      mode: "do",
+      offsetAfter: body.metadata.offset,
+      multipartUploadId: body.metadata.multipartUploadId,
+    });
+    return new Response(null, { status: HTTP_STATUS.NO_CONTENT });
+  }
+
+  private async handleHead(request: Request): Promise<Response> {
+    this.assertTusVersion(request);
+
+    const metadata = await this.requireUpload(
+      request.headers.get("X-Project-Id"),
+      request.headers.get("X-Upload-Id"),
+      true,
+    );
+    if (metadata.size !== null && metadata.offset >= metadata.size) {
+      await this.tryDeliverCompletionCallback(metadata);
+    }
+
+    const headers: Record<string, string> = {
+      "Tus-Resumable": TUS_VERSION,
+      [UPLOAD_OFFSET_HEADER]: metadata.offset.toString(),
+      [UPLOAD_EXPIRES_HEADER]: metadata.expiresAt,
+      "Cache-Control": "no-store",
+    };
+
+    if (metadata.size !== null) {
+      headers[UPLOAD_LENGTH_HEADER] = metadata.size.toString();
+    } else {
+      headers[UPLOAD_DEFER_LENGTH_HEADER] = "1";
+    }
+
+    if (metadata.rawMetadata) {
+      headers[UPLOAD_METADATA_HEADER] = metadata.rawMetadata;
+    } else if (Object.keys(metadata.metadata).length > 0) {
+      headers[UPLOAD_METADATA_HEADER] = Object.entries(metadata.metadata)
+        .map(([key, value]) => {
+          const sanitizedValue = sanitizeHeaderValue(value);
+          return sanitizedValue ? `${key} ${btoa(sanitizedValue)}` : key;
+        })
+        .join(",");
+    }
+
+    return new Response(null, { status: HTTP_STATUS.OK, headers });
+  }
+
+  private async handlePatch(request: Request): Promise<Response> {
+    this.assertTusVersion(request);
+
+    const contentType = request.headers.get("Content-Type");
+    if (contentType !== CONTENT_TYPE_OCTET_STREAM) {
+      throw Errors.invalidContentType(
+        CONTENT_TYPE_OCTET_STREAM,
+        contentType ?? undefined,
+      );
+    }
+
+    const metadata = await this.requireUpload(
+      request.headers.get("X-Project-Id"),
+      request.headers.get("X-Upload-Id"),
+      true,
+    );
+    const uploadOffsetHeader = request.headers.get(UPLOAD_OFFSET_HEADER);
+    if (!uploadOffsetHeader) {
+      throw Errors.invalidRequest("Upload-Offset header is required");
+    }
+
+    const uploadOffset = parseNonNegativeInt(uploadOffsetHeader);
+    if (uploadOffset === null) {
+      throw Errors.invalidRequest(
+        "Upload-Offset must be a non-negative integer",
+      );
+    }
+    if (uploadOffset !== metadata.offset) {
+      throw Errors.offsetMismatch(metadata.offset, uploadOffset);
+    }
+
+    const uploadLengthHeader = request.headers.get(UPLOAD_LENGTH_HEADER);
+    if (metadata.size === null && uploadLengthHeader) {
+      const uploadLength = parseNonNegativeInt(uploadLengthHeader);
+      if (uploadLength === null) {
+        throw Errors.invalidRequest(
+          "Upload-Length must be a non-negative integer",
+        );
+      }
+      if (uploadLength < metadata.offset) {
+        throw Errors.invalidRequest(
+          `Upload-Length ${uploadLength} is less than current offset ${metadata.offset}`,
+        );
+      }
+      const maxSize = parseInt(this.env.TUS_MAX_SIZE, 10);
+      if (uploadLength > maxSize) {
+        throw Errors.uploadTooLarge(uploadLength, maxSize);
+      }
+      metadata.size = uploadLength;
+      await this.persistMetadata(metadata);
+    } else if (uploadLengthHeader && metadata.size !== null) {
+      const newLength = parseNonNegativeInt(uploadLengthHeader);
+      if (newLength !== metadata.size) {
+        throw Errors.invalidRequest("Upload-Length cannot be changed once set");
+      }
+    }
+
+    const contentLength = parseNonNegativeInt(
+      request.headers.get("Content-Length") ?? undefined,
+    );
+    if (contentLength === null) {
+      throw Errors.invalidRequest("Content-Length header is required");
+    }
+    if (
+      metadata.size !== null &&
+      uploadOffset + contentLength > metadata.size
+    ) {
+      throw Errors.invalidRequest(
+        `Content-Length would exceed Upload-Length: ${uploadOffset} + ${contentLength} > ${metadata.size}`,
+      );
+    }
+
+    if (contentLength === 0) {
+      if (metadata.size !== null && metadata.offset >= metadata.size) {
+        await this.tryDeliverCompletionCallback(metadata);
+      }
+      return new Response(null, {
+        status: HTTP_STATUS.NO_CONTENT,
+        headers: {
+          "Tus-Resumable": TUS_VERSION,
+          [UPLOAD_OFFSET_HEADER]: metadata.offset.toString(),
+          [UPLOAD_EXPIRES_HEADER]: metadata.expiresAt,
+        },
+      });
+    }
+
+    const body = request.body as ReadableStream<Uint8Array> | null;
+    if (!body) {
+      throw Errors.invalidRequest("Request body is required");
+    }
+
+    const newOffset = metadata.offset + contentLength;
+    const isComplete = metadata.size !== null && newOffset >= metadata.size;
+    const nextPartNumber = metadata.parts.length + 1;
+    this.logEvent("patch_start", metadata, {
+      mode: "do",
+      offsetBefore: metadata.offset,
+      offsetAfter: newOffset,
+      contentLength,
+      multipartUploadId: metadata.multipartUploadId,
+      partNumber: nextPartNumber,
+    });
+
+    let uploadResult;
+    try {
+      uploadResult = await uploadChunkToR2({
+        adapterKey: metadata.adapterKey,
+        chunk: body,
+        chunkSize: contentLength,
+        offset: metadata.offset,
+        multipartUploadId: metadata.multipartUploadId,
+        isLastChunk: isComplete,
+        existingPartsCount: metadata.parts.length,
+        env: this.env,
+      });
+    } catch (error) {
+      // Drain/cancel remaining request body to prevent uncaught stream errors
+      // that crash the DO instance in miniflare/wrangler dev.
+      try {
+        await body.cancel();
+      } catch {
+        /* already closed or locked */
+      }
+
+      if (isRetryableError(error)) {
+        this.logEvent("patch_retryable_failure", metadata, {
+          mode: "do",
+          offsetBefore: metadata.offset,
+          multipartUploadId: metadata.multipartUploadId,
+          partNumber: nextPartNumber,
+          errorName: error instanceof Error ? error.name : typeof error,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return new Response(
+          JSON.stringify({
+            error:
+              "Temporary upload failure. Retry PATCH with same Upload-Offset.",
+            code: "temporary_unavailable",
+          }),
+          {
+            status: 503,
+            headers: {
+              "Content-Type": "application/json",
+              "Tus-Resumable": TUS_VERSION,
+              "Retry-After": "1",
+              [UPLOAD_OFFSET_HEADER]: metadata.offset.toString(),
+              [UPLOAD_EXPIRES_HEADER]: metadata.expiresAt,
+            },
+          },
+        );
+      }
+      throw error;
+    }
+
+    metadata.offset = newOffset;
+    if (uploadResult.multipartUploadId) {
+      metadata.multipartUploadId = uploadResult.multipartUploadId;
+    }
+    if (uploadResult.part) {
+      metadata.parts.push(uploadResult.part);
+    }
+    this.logEvent("patch_committed", metadata, {
+      mode: "do",
+      offsetBefore: uploadOffset,
+      offsetAfter: metadata.offset,
+      multipartUploadId: metadata.multipartUploadId,
+      partNumber: uploadResult.part?.partNumber ?? null,
+    });
+
+    if (isComplete) {
+      await this.finalizeUpload(metadata);
+    } else {
+      await this.persistMetadata(metadata);
+    }
+
+    return new Response(null, {
+      status: HTTP_STATUS.NO_CONTENT,
+      headers: {
+        "Tus-Resumable": TUS_VERSION,
+        [UPLOAD_OFFSET_HEADER]: metadata.offset.toString(),
+        [UPLOAD_EXPIRES_HEADER]: metadata.expiresAt,
+      },
+    });
+  }
+
+  private async handleDelete(request: Request): Promise<Response> {
+    this.assertTusVersion(request);
+
+    const metadata = await this.requireUpload(
+      request.headers.get("X-Project-Id"),
+      request.headers.get("X-Upload-Id"),
+    );
+    const multipartUploadId = metadata.multipartUploadId;
+    if (multipartUploadId) {
+      await retry((attempt) => {
+        if (attempt > 1) {
+          this.logEvent("delete_retry_abort_multipart", metadata, {
+            mode: "do",
+            retryAttempt: attempt,
+            multipartUploadId: metadata.multipartUploadId,
+          });
+        }
+        return abortMultipartUpload({
+          adapterKey: metadata.adapterKey,
+          uploadId: multipartUploadId,
+          env: this.env,
+        });
+      }).catch((error) => {
+        console.error("Failed to abort multipart upload", error);
+      });
+    }
+
+    await this.env.R2_BUCKET.delete(metadata.adapterKey).catch((error) => {
+      console.error("Failed to delete upload object", error);
+    });
+
+    await this.deleteMetadata();
+
+    await sendUploadCallback(
+      {
+        type: "upload-failed",
+        data: {
+          environmentId: metadata.environmentId,
+          fileKeyId: metadata.fileKeyId,
+          projectId: metadata.projectId,
+          error: "Upload aborted via TUS termination",
+        },
+      },
+      this.env,
+    ).catch((error) => {
+      console.error("Failed to send upload failure callback", error);
+    });
+    this.logEvent("upload_deleted", metadata, {
+      mode: "do",
+      offsetAfter: metadata.offset,
+      multipartUploadId: metadata.multipartUploadId,
+    });
+
+    return new Response(null, {
+      status: HTTP_STATUS.NO_CONTENT,
+      headers: { "Tus-Resumable": TUS_VERSION },
+    });
+  }
+
+  private async requireUpload(
+    projectId: string | null,
+    uploadIdHeader: string | null,
+    treatMissingAsTemporary = false,
+  ): Promise<TusUploadMetadata> {
+    const metadata = await this.getMetadata();
+    if (!metadata) {
+      if (treatMissingAsTemporary) {
+        this.logMissingState({
+          mode: "do",
+          uploadIdHeader,
+          projectIdHeader: projectId,
+        });
+        throw new TusError(
+          "INVALID_REQUEST",
+          503,
+          "Upload state temporarily unavailable. Retry shortly.",
+        );
+      }
+      throw Errors.uploadNotFound(uploadIdHeader ?? "unknown");
+    }
+    if (projectId && metadata.projectId !== projectId) {
+      throw Errors.unauthorized("Upload does not belong to this project");
+    }
+    if (isUploadExpired(metadata)) {
+      throw Errors.uploadExpired(metadata.uploadId);
+    }
+    return metadata;
+  }
+
+  private logMissingState(extra: Record<string, unknown> = {}): void {
+    console.info("[tus-do]", {
+      event: "upload_state_missing",
+      ...extra,
+    });
+  }
+
+  private async finalizeUpload(metadata: TusUploadMetadata): Promise<void> {
+    const multipartUploadId = metadata.multipartUploadId;
+    if (multipartUploadId && metadata.parts.length > 0) {
+      await retry((attempt) => {
+        if (attempt > 1) {
+          this.logEvent("finalize_retry_complete_multipart", metadata, {
+            mode: "do",
+            retryAttempt: attempt,
+            multipartUploadId: metadata.multipartUploadId,
+          });
+        }
+        return completeMultipartUpload({
+          adapterKey: metadata.adapterKey,
+          uploadId: multipartUploadId,
+          parts: metadata.parts,
+          env: this.env,
+        });
+      });
+    }
+
+    const fileObject = await this.env.R2_BUCKET.get(metadata.adapterKey);
+    if (!fileObject) {
+      throw new Error("Failed to retrieve uploaded file");
+    }
+
+    const actualSize = fileObject.size;
+    const headerBytes = await readHeaderBytes(
+      fileObject.body as ReadableStream<Uint8Array>,
+      8192,
+    );
+    const actualMimeType = await detectMimeType(headerBytes);
+    const actualHash = metadata.claimedHash ?? null;
+
+    if (
+      metadata.claimedMimeType &&
+      actualMimeType !== "application/octet-stream" &&
+      !areMimeTypesEquivalent(metadata.claimedMimeType, actualMimeType)
+    ) {
+      await this.env.R2_BUCKET.delete(metadata.adapterKey);
+      await this.deleteMetadata();
+      throw Errors.mimeTypeMismatch(metadata.claimedMimeType, actualMimeType);
+    }
+
+    metadata.callbackDeliveredAt = metadata.callbackDeliveredAt ?? null;
+    await this.persistMetadata(metadata);
+    this.logEvent("upload_finalized_bytes", metadata, {
+      mode: "do",
+      offsetAfter: metadata.offset,
+      multipartUploadId: metadata.multipartUploadId,
+    });
+    await this.tryDeliverCompletionCallback(metadata, {
+      actualSize,
+      actualMimeType,
+      actualHash,
+    });
+  }
+
+  private async tryDeliverCompletionCallback(
+    metadata: TusUploadMetadata,
+    actual?: {
+      actualSize: number;
+      actualMimeType: string;
+      actualHash: string | null;
+    },
+  ): Promise<void> {
+    if (metadata.callbackDeliveredAt) {
+      await this.deleteMetadata();
+      return;
+    }
+
+    let actualSize = actual?.actualSize;
+    let actualMimeType = actual?.actualMimeType;
+    let actualHash = actual?.actualHash;
+
+    if (actualSize === undefined || actualMimeType === undefined) {
+      const object = await this.env.R2_BUCKET.get(metadata.adapterKey);
+      if (!object) return;
+      actualSize = object.size;
+      const headerBytes = await readHeaderBytes(
+        object.body as ReadableStream<Uint8Array>,
+        8192,
+      );
+      actualMimeType = await detectMimeType(headerBytes);
+      actualHash = metadata.claimedHash ?? null;
+    }
+    await retry(
+      (attempt) => {
+        if (attempt > 1) {
+          this.logEvent("callback_retry", metadata, {
+            mode: "do",
+            retryAttempt: attempt,
+          });
+        }
+        return sendUploadCallback(
+          {
+            type: "upload-completed",
+            data: {
+              environmentId: metadata.environmentId,
+              fileKeyId: metadata.fileKeyId,
+              accessKey: metadata.accessKey,
+              fileName: metadata.fileName,
+              claimedSize: metadata.claimedSize ?? metadata.size ?? actualSize,
+              claimedHash: metadata.claimedHash ?? null,
+              claimedMimeType: metadata.claimedMimeType ?? null,
+              actualHash: actualHash ?? null,
+              actualMimeType,
+              actualSize,
+              adapterKey: metadata.adapterKey,
+              projectId: metadata.projectId,
+              isPublic: metadata.isPublic,
+              metadata: metadata.metadata,
+            },
+          },
+          this.env,
+        );
+      },
+      { maxAttempts: 4, baseDelayMs: 250, maxDelayMs: 2000 },
+    );
+
+    metadata.callbackDeliveredAt = new Date().toISOString();
+    await this.persistMetadata(metadata);
+    this.logEvent("callback_delivered", metadata, {
+      mode: "do",
+      offsetAfter: metadata.offset,
+    });
+    await this.deleteMetadata();
+  }
+
+  private async getMetadata(): Promise<TusUploadMetadata | null> {
+    const metadata =
+      await this.state.storage.get<TusUploadMetadata>(METADATA_KEY);
+    return metadata ?? null;
+  }
+
+  private async persistMetadata(metadata: TusUploadMetadata): Promise<void> {
+    await this.state.storage.put(METADATA_KEY, metadata);
+  }
+
+  private async deleteMetadata(): Promise<void> {
+    await this.state.storage.delete(METADATA_KEY);
+  }
+
+  private logEvent(
+    event: string,
+    metadata: TusUploadMetadata,
+    extra: Record<string, unknown> = {},
+  ): void {
+    console.info("[tus-do]", {
+      event,
+      uploadId: metadata.uploadId,
+      projectId: metadata.projectId,
+      ...extra,
+    });
+  }
+}

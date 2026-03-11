@@ -18,6 +18,7 @@ export interface TusUploadMetadata {
   expiresAt: string;
   metadata: Record<string, string>;
   rawMetadata?: string;
+  callbackDeliveredAt?: string | null;
 }
 
 export interface TusUploadPart {

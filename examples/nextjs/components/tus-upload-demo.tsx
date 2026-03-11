@@ -42,7 +42,14 @@ type CompletionResponse = {
   };
 };
 
-type UploadState = "idle" | "preparing" | "uploading" | "paused" | "success" | "error";
+type UploadState =
+  | "idle"
+  | "preparing"
+  | "uploading"
+  | "paused"
+  | "finalizing"
+  | "success"
+  | "error";
 
 export function TusUploadDemo() {
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
@@ -93,20 +100,44 @@ export function TusUploadDemo() {
   }
 
   async function awaitCompletion(fileKeyId: string) {
-    const response = await fetch("/api/upload", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "await-completion",
-        fileKeyId,
-        timeoutMs: 30_000,
-      }),
-    });
+    const deadlineMs = Date.now() + 5 * 60_000;
+    let retryDelayMs = 1_000;
 
-    const data = (await response.json().catch(() => null)) as CompletionResponse | null;
-    if (!response.ok || !data?.ok || !data.completion) {
-      throw new Error(data?.error?.message ?? "Upload completed but callback is still pending.");
+    while (Date.now() < deadlineMs) {
+      if (activeUploadIdRef.current !== fileKeyId) {
+        return;
+      }
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "await-completion",
+          fileKeyId,
+          timeoutMs: 30_000,
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as CompletionResponse | null;
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error?.message ?? "Failed to await upload completion.");
+      }
+
+      if (data.completion) {
+        return;
+      }
+
+      if (!data.pending) {
+        throw new Error("Upload completed but callback is still pending.");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      retryDelayMs = Math.min(retryDelayMs + 500, 5_000);
     }
+
+    throw new Error(
+      "Upload finished, but server callback is still pending. Please wait and refresh the file list.",
+    );
   }
 
   async function startUpload() {
@@ -157,12 +188,15 @@ export function TusUploadDemo() {
         onSuccess: () => {
           if (activeUploadIdRef.current !== registration.fileKeyId) return;
           committedBytesRef.current = file.size;
+          setState("finalizing");
           void awaitCompletion(registration.fileKeyId)
             .then(() => {
+              if (activeUploadIdRef.current !== registration.fileKeyId) return;
               setProgressPercent(100);
               setState("success");
             })
             .catch((error: unknown) => {
+              if (activeUploadIdRef.current !== registration.fileKeyId) return;
               setState("error");
               setErrorMessage(
                 error instanceof Error
@@ -254,7 +288,12 @@ export function TusUploadDemo() {
           type="button"
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
-          disabled={state === "uploading" || state === "paused" || state === "preparing"}
+          disabled={
+            state === "uploading" ||
+            state === "paused" ||
+            state === "preparing" ||
+            state === "finalizing"
+          }
         >
           Choose file
         </Button>

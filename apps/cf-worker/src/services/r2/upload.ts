@@ -17,6 +17,74 @@ export interface UploadChunkResult {
   part: TusUploadPart | null;
 }
 
+export class UploadStreamReadError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message);
+    this.name = "UploadStreamReadError";
+    if (options?.cause !== undefined) {
+      Object.defineProperty(this, "cause", {
+        value: options.cause,
+        enumerable: false,
+      });
+    }
+  }
+}
+
+async function readExactBytesFromStream(
+  stream: ReadableStream<Uint8Array>,
+  expectedBytes: number,
+): Promise<ArrayBuffer> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  try {
+    while (total < expectedBytes) {
+      let readResult: ReadableStreamReadResult<Uint8Array>;
+      try {
+        readResult = await reader.read();
+      } catch (error) {
+        throw new UploadStreamReadError("Failed reading request body stream", {
+          cause: error,
+        });
+      }
+
+      if (readResult.done) break;
+      const chunk = readResult.value;
+      if (!chunk || chunk.byteLength === 0) continue;
+
+      chunks.push(chunk);
+      total += chunk.byteLength;
+      if (total > expectedBytes) {
+        throw new UploadStreamReadError(
+          `Request body exceeded expected length (${total} > ${expectedBytes})`,
+        );
+      }
+    }
+  } finally {
+    try {
+      await reader.cancel();
+    } catch {
+      // Best effort cleanup of pending stream reads.
+    }
+    reader.releaseLock();
+  }
+
+  if (total !== expectedBytes) {
+    throw new UploadStreamReadError(
+      `Incomplete request body (${total}/${expectedBytes} bytes)`,
+    );
+  }
+
+  const merged = new Uint8Array(expectedBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return merged.buffer;
+}
+
 export async function uploadChunkToR2(
   params: UploadChunkParams,
 ): Promise<UploadChunkResult> {
@@ -31,9 +99,12 @@ export async function uploadChunkToR2(
     env,
   } = params;
 
+  const chunkBody =
+    chunk instanceof ReadableStream ? await readExactBytesFromStream(chunk, chunkSize) : chunk;
+
   // use simple put for small single-chunk uploads
   if (chunkSize < 5 * 1024 * 1024 && isLastChunk && offset === 0) {
-    await env.R2_BUCKET.put(adapterKey, chunk);
+    await env.R2_BUCKET.put(adapterKey, chunkBody);
     return { multipartUploadId: null, part: null };
   }
 
@@ -48,7 +119,7 @@ export async function uploadChunkToR2(
   const partNumber = existingPartsCount + 1;
 
   const multipart = env.R2_BUCKET.resumeMultipartUpload(adapterKey, uploadId);
-  const uploadedPart = await multipart.uploadPart(partNumber, chunk);
+  const uploadedPart = await multipart.uploadPart(partNumber, chunkBody);
 
   return {
     multipartUploadId: uploadId,

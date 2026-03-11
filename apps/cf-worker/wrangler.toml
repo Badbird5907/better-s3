@@ -9,16 +9,17 @@ binding = "R2_BUCKET"
 bucket_name = "silo-uploads"
 preview_bucket_name = "silo-uploads-preview"
 
-# KV namespaces for TUS protocol
-# For production: Create with `wrangler kv namespace create "TUS_METADATA"` and fill in IDs
-# For local dev: These use local persistence automatically
 [[kv_namespaces]]
-binding = "TUS_METADATA"
-id = "tus-metadata-placeholder"  # Replace with real ID for production
+binding = "PROJECT_CACHE"
+id = "project-cache-placeholder"
 
-[[kv_namespaces]]
-binding = "TUS_EXPIRATION"
-id = "tus-expiration-placeholder"  # Replace with real ID for production
+[[durable_objects.bindings]]
+name = "TUS_STATE_DO"
+class_name = "TusStateDO"
+
+[[migrations]]
+tag = "v1-tus-state-do"
+new_classes = ["TusStateDO"]
 
 [[queues.producers]]
 binding = "DELETE_PREFIX_QUEUE"

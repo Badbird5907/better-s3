@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 
+import type { DeletePrefixQueueMessage } from "./services/r2/delete-prefix";
 import type { Bindings, Variables } from "./types/bindings";
+import { TusStateDO } from "./durable-objects/tus-state-do";
 import { requireCallbackSecret } from "./middleware/auth";
 import { cors } from "./middleware/cors";
 import { methodOverride } from "./middleware/method-override";
@@ -14,13 +16,14 @@ import { handleInternalDelete } from "./routes/internal/delete";
 import { handleInternalDeletePrefix } from "./routes/internal/delete-prefix";
 import { handleInternalList } from "./routes/internal/list";
 import { handleInternalMetadata } from "./routes/internal/metadata";
+import {
+  handleTusCreate,
+  handleTusDelete,
+  handleTusHead,
+  handleTusOptions,
+  handleTusPatch,
+} from "./routes/tus-handlers";
 import { deletePrefixChunk } from "./services/r2/delete-prefix";
-import type { DeletePrefixQueueMessage } from "./services/r2/delete-prefix";
-import { handleTusCreate } from "./routes/tus/create";
-import { handleTusDelete } from "./routes/tus/delete";
-import { handleTusHead } from "./routes/tus/head";
-import { handleTusOptions } from "./routes/tus/options";
-import { handleTusPatch } from "./routes/tus/patch";
 import { createErrorResponse } from "./utils/errors";
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -34,6 +37,9 @@ app.get("/health", (c) => c.json({ status: "ok", version: "1.0.0" }));
 app.options("/ingest/tus", requireProject, handleTusOptions);
 app.options("/ingest/tus/:uploadId", requireProject, handleTusOptions);
 app.post("/ingest/tus", requireProject, handleTusCreate);
+// Some runtimes/proxies can normalize HEAD to GET before Hono routing.
+// Mirror HEAD handling on GET so resumable uploads do not restart on 404.
+app.get("/ingest/tus/:uploadId", requireProject, handleTusHead);
 app.on("HEAD", "/ingest/tus/:uploadId", requireProject, handleTusHead);
 app.patch("/ingest/tus/:uploadId", requireProject, handleTusPatch);
 app.delete("/ingest/tus/:uploadId", requireProject, handleTusDelete);
@@ -137,3 +143,5 @@ export default {
     }
   },
 };
+
+export { TusStateDO };
