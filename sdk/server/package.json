@@ -1,0 +1,41 @@
+{
+  "name": "@silo-storage/sdk-server",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "dev": "tsup --watch",
+    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false"
+  },
+  "dependencies": {
+    "@silo-storage/sdk-core": "workspace:*",
+    "@silo-storage/shared": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@silo-storage/eslint-config": "workspace:*",
+    "@silo-storage/prettier-config": "workspace:*",
+    "@silo-storage/tsconfig": "workspace:*",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "tsup": "^8.5.1",
+    "typescript": "catalog:"
+  },
+  "prettier": "@silo-storage/prettier-config"
+}

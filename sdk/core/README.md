@@ -9,6 +9,7 @@ Use `createSiloCore` to:
 - register file intents with `/api/v1/upload/register`
 - enable dev streaming mode (`dev: true`)
 - configure callback URL behavior for production
+- power framework runtimes such as `@silo-storage/sdk-server`
 
 ```ts
 import { createSiloCore } from "@silo-storage/sdk-core";
@@ -38,6 +39,13 @@ const prepared = await uploadCore.prepareUpload({
 
 `sdk-core` only accepts absolute callback URLs. Path/origin resolution should be
 handled by framework-specific adapters.
+
+## Callback Metadata
+
+`callbackMetadata` is intentionally low-level in `sdk-core`.
+If you are building route-based uploads, prefer `@silo-storage/sdk-server`, which
+stores internal router state in `callbackMetadata.__silo` and keeps that envelope
+library-owned.
 
 ## Dev SSE Consumption
 
