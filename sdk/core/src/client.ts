@@ -1,5 +1,3 @@
-import { generateSignedUploadUrl, SignedUploadUrlParams } from "@silo/shared/signing";
-
 export interface SiloClientConfig {
   apiBaseUrl: string;
   apiKey?: string;
@@ -16,6 +14,5 @@ export function createSiloClient(config: SiloClientConfig): SiloClient {
   return {
     getApiBaseUrl: () => apiBaseUrl,
     getApiKey: () => config.apiKey,
-
   };
 }

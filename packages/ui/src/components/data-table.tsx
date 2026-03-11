@@ -38,6 +38,7 @@ function DataTable<TData, TValue>({
   emptyIcon: EmptyIcon = FileX,
   onRowClick,
 }: DataTableProps<TData, TValue>) {
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table requires this hook to create table instance for rendering.
   const table = useReactTable({
     data,
     columns,
