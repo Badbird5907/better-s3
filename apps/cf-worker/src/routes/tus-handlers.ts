@@ -101,6 +101,7 @@ export async function handleTusCreate(c: AppContext): Promise<Response> {
   if (uploadLength !== null) {
     const maxSize = parseInt(c.env.TUS_MAX_SIZE, 10);
     if (uploadLength > maxSize) {
+      console.error("Upload too large", { uploadLength, maxSize });
       throw Errors.uploadTooLarge(uploadLength, maxSize);
     }
   }

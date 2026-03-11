@@ -13,6 +13,7 @@ export interface Bindings {
   CALLBACK_SECRET: string;
   SIGNING_SECRET: string;
   TUS_MAX_SIZE: string;
+  TUS_MAX_PATCH_SIZE?: string;
   TUS_EXPIRATION_HOURS: string;
 }
 

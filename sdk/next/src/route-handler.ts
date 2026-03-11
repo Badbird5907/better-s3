@@ -1,14 +1,12 @@
 import type { UploadCore, UploadFileInput } from "@silo-storage/sdk-core";
+import type { FileRouter, RouterConfig } from "@silo-storage/sdk-server";
+import { z } from "zod";
+
 import {
   extractRouterConfig as extractRouterConfigFromServer,
   handleUploadCallback,
   registerRouteUpload,
 } from "@silo-storage/sdk-server";
-import type {
-  FileRouter,
-  RouterConfig,
-} from "@silo-storage/sdk-server";
-import { z } from "zod";
 
 const registerRequestSchema = z.object({
   action: z.literal("register"),
@@ -20,7 +18,7 @@ const registerRequestSchema = z.object({
   files: z
     .object({
       fileName: z.string().min(1),
-      size: z.number().int().positive(),
+      size: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
       mimeType: z.string().optional(),
       hash: z.string().optional(),
       isPublic: z.boolean().optional(),
@@ -99,7 +97,9 @@ function resolveCallbackUrl(
   return Promise.resolve(new URL(request.url).toString());
 }
 
-function toUploadFiles(files: z.infer<typeof registerRequestSchema>["files"]): UploadFileInput[] {
+function toUploadFiles(
+  files: z.infer<typeof registerRequestSchema>["files"],
+): UploadFileInput[] {
   return files.map((file) => ({
     fileName: file.fileName,
     size: file.size,
@@ -132,18 +132,16 @@ export interface CreateRouteHandlerOptions<
   completionTtlMs?: number;
 }
 
-export function extractRouterConfig<TRouter extends FileRouter<unknown, unknown>>(
-  router: TRouter,
-): RouterConfig<TRouter> {
+export function extractRouterConfig<
+  TRouter extends FileRouter<unknown, unknown>,
+>(router: TRouter): RouterConfig<TRouter> {
   return extractRouterConfigFromServer(router);
 }
 
 export function createRouteHandler<
   TContext = undefined,
   TRouter extends FileRouter<Request, TContext> = FileRouter<Request, TContext>,
->(
-  options: CreateRouteHandlerOptions<TContext, TRouter>,
-) {
+>(options: CreateRouteHandlerOptions<TContext, TRouter>) {
   const completionTtlMs = options.completionTtlMs ?? 10 * 60 * 1000;
 
   function GET() {

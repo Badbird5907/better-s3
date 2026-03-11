@@ -10,7 +10,7 @@ export const registerFileKeySchema = z.object({
   fileKeyId: z.string().min(1),
   accessKey: z.string().min(1),
   fileName: z.string().min(1),
-  size: z.number().int().positive(),
+  size: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   mimeType: z.string().optional(),
   hash: z.string().optional(),
   isPublic: z.boolean().optional(),
@@ -76,7 +76,9 @@ function mergeCallbackMetadata(
   }
   if (
     input.apiKeyId &&
-    (input.callbackUrl || input.callbackMetadata || Object.keys(existingObject).length > 0)
+    (input.callbackUrl ||
+      input.callbackMetadata ||
+      Object.keys(existingObject).length > 0)
   ) {
     merged.apiKeyId = input.apiKeyId;
   }
@@ -142,7 +144,9 @@ export async function registerFileKeyIntent(input: {
         existing.projectId !== input.projectId ||
         existing.environmentId !== input.environmentId
       ) {
-        throw new Error("File key does not belong to the target project/environment");
+        throw new Error(
+          "File key does not belong to the target project/environment",
+        );
       }
       if (
         existing.id !== input.fileKey.fileKeyId ||

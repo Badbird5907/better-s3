@@ -24,6 +24,21 @@ import { createErrorResponse, Errors, TusError } from "../utils/errors";
 import { parseNonNegativeInt, sanitizeHeaderValue } from "../utils/validation";
 
 const METADATA_KEY = "upload:metadata";
+const DEFAULT_MAX_PATCH_SIZE = 256 * 1024 * 1024;
+
+function getMaxPatchSizeBytes(env: Bindings): number {
+  const raw = env.TUS_MAX_PATCH_SIZE?.trim();
+  if (!raw) {
+    return DEFAULT_MAX_PATCH_SIZE;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`Invalid TUS_MAX_PATCH_SIZE value: ${raw}`);
+  }
+
+  return parsed;
+}
 
 export class TusStateDO {
   private queue: Promise<void> = Promise.resolve();
@@ -191,6 +206,7 @@ export class TusStateDO {
       }
       const maxSize = parseInt(this.env.TUS_MAX_SIZE, 10);
       if (uploadLength > maxSize) {
+        console.error("Upload too large", { uploadLength, maxSize });
         throw Errors.uploadTooLarge(uploadLength, maxSize);
       }
       metadata.size = uploadLength;
@@ -215,6 +231,12 @@ export class TusStateDO {
       throw Errors.invalidRequest(
         `Content-Length would exceed Upload-Length: ${uploadOffset} + ${contentLength} > ${metadata.size}`,
       );
+    }
+
+    const maxPatchSize = getMaxPatchSizeBytes(this.env);
+    if (contentLength > maxPatchSize) {
+      console.error("Upload too large", { contentLength, maxPatchSize });
+      throw Errors.uploadTooLarge(contentLength, maxPatchSize);
     }
 
     if (contentLength === 0) {

@@ -90,7 +90,7 @@ export const files = pgTable("files", {
     .$defaultFn(() => nanoid(16)),
   hash: text("hash"), // optional sha256 hash of the file (null if not computed)
   mimeType: text("mime_type").notNull(),
-  size: integer("size").notNull(),
+  size: bigint("size", { mode: "number" }).notNull(),
   adapterKey: text("adapter_key").notNull(), // this is the file key in s3
   environmentId: text("environment_id")
     .references(() => projectEnvironments.id, { onDelete: "cascade" })
@@ -128,7 +128,7 @@ export const fileKeys = pgTable(
     // Claimed values from signed URL (for validation)
     claimedHash: text("claimed_hash"), // optional - if provided, worker validates against actual
     claimedMimeType: text("claimed_mime_type"), // optional - if provided, worker validates
-    claimedSize: integer("claimed_size").notNull(), // required - for quota/validation
+    claimedSize: bigint("claimed_size", { mode: "number" }).notNull(), // required - for quota/validation
 
     // Upload state tracking
     status: fileKeyStatus("status").notNull().default("pending"),
@@ -218,12 +218,11 @@ export const apiKeys = pgTable("api_keys", {
   organizationId: text("organization_id")
     .references(() => auth.organizations.id, { onDelete: "cascade" })
     .notNull(),
-  environmentId: text("environment_id").references(
-    () => projectEnvironments.id,
-    {
+  environmentId: text("environment_id")
+    .references(() => projectEnvironments.id, {
       onDelete: "cascade",
-    },
-  ).notNull(),
+    })
+    .notNull(),
   createdById: text("created_by_id").references(() => auth.members.id, {
     onDelete: "set null",
   }), // nullable in case member is removed
@@ -283,7 +282,7 @@ export const webhookAttemptStatus = pgEnum("webhook_attempt_status", [
   "failed",
 ]);
 
-// for all types of webhooks (webhook/callback) 
+// for all types of webhooks (webhook/callback)
 const deliveryAttemptSharedColumns = {
   id: text("id")
     .primaryKey()
@@ -447,26 +446,32 @@ export const usageDailyRelations = relations(usageDaily, ({ one }) => ({
   }),
 }));
 
-export const webhookAttemptsRelations = relations(webhookAttempts, ({ one }) => ({
-  environment: one(projectEnvironments, {
-    fields: [webhookAttempts.environmentId],
-    references: [projectEnvironments.id],
+export const webhookAttemptsRelations = relations(
+  webhookAttempts,
+  ({ one }) => ({
+    environment: one(projectEnvironments, {
+      fields: [webhookAttempts.environmentId],
+      references: [projectEnvironments.id],
+    }),
+    project: one(projects, {
+      fields: [webhookAttempts.projectId],
+      references: [projects.id],
+    }),
   }),
-  project: one(projects, {
-    fields: [webhookAttempts.projectId],
-    references: [projects.id],
-  }),
-}));
+);
 
-export const callbackAttemptsRelations = relations(callbackAttempts, ({ one }) => ({
-  environment: one(projectEnvironments, {
-    fields: [callbackAttempts.environmentId],
-    references: [projectEnvironments.id],
+export const callbackAttemptsRelations = relations(
+  callbackAttempts,
+  ({ one }) => ({
+    environment: one(projectEnvironments, {
+      fields: [callbackAttempts.environmentId],
+      references: [projectEnvironments.id],
+    }),
+    project: one(projects, {
+      fields: [callbackAttempts.projectId],
+      references: [projects.id],
+    }),
   }),
-  project: one(projects, {
-    fields: [callbackAttempts.projectId],
-    references: [projects.id],
-  }),
-}));
+);
 
 export * from "./auth";

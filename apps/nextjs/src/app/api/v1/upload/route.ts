@@ -17,7 +17,7 @@ const schema = z.object({
   environmentId: z.string(),
   accessKey: z.string().min(1),
   fileName: z.string().min(1),
-  size: z.number().int().positive(),
+  size: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   mimeType: z.string().optional(),
   hash: z.string().optional(),
   isPublic: z.boolean().optional(),
@@ -25,7 +25,6 @@ const schema = z.object({
   callbackUrl: z.url().optional(),
   callbackMetadata: z.record(z.string(), z.unknown()).optional(),
   dev: z.boolean().optional(),
-
 });
 
 export async function POST(request: Request) {

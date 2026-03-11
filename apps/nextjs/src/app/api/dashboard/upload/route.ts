@@ -20,7 +20,7 @@ const schema = z.object({
   projectId: z.string(),
   environmentId: z.string(),
   fileName: z.string().min(1),
-  size: z.number().int().positive(),
+  size: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   mimeType: z.string().optional(),
   isPublic: z.boolean().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),

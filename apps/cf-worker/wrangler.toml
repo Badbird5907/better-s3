@@ -35,7 +35,9 @@ dead_letter_queue = "silo-delete-prefix-dlq"
 [vars]
 WORKER_DOMAIN = "files.evanyu.dev"
 NEXTJS_CALLBACK_URL = "http://localhost:3000"
-TUS_MAX_SIZE = "5368709120"  # 5GB in bytes
+TUS_MAX_SIZE = "106300440576"  # 99GB in bytes
+# TUS_MAX_PATCH_SIZE = "536870912"  # 512MB per PATCH in bytes
+TUS_MAX_PATCH_SIZE = "106300440576"  # 99GB per PATCH in bytes
 TUS_EXPIRATION_HOURS = "24"
 
 # Development environment

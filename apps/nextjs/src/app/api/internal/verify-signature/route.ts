@@ -77,9 +77,12 @@ function timingSafeEqual(a: string, b: string): boolean {
 export async function POST(request: Request) {
   const header = request.headers.get("Authorization");
   if (!header?.startsWith("Bearer ")) {
-    console.log("[verify-signature] Missing or invalid Authorization header format", {
-      header: header ? "present" : "missing",
-    });
+    console.log(
+      "[verify-signature] Missing or invalid Authorization header format",
+      {
+        header: header ? "present" : "missing",
+      },
+    );
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -302,6 +305,20 @@ export async function POST(request: Request) {
       );
     }
 
+    const parsedSize = Number(payload.size);
+    if (!Number.isSafeInteger(parsedSize) || parsedSize < 0) {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid size",
+          valid: false,
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
     await db
       .update(apiKeys)
       .set({ lastUsedAt: new Date() })
@@ -315,7 +332,7 @@ export async function POST(request: Request) {
         fileKeyId: payload.fileKeyId,
         accessKey: payload.accessKey,
         fileName: payload.fileName,
-        size: parseInt(payload.size, 10),
+        size: parsedSize,
         claimedHash: payload.hash ?? null,
         claimedMimeType: payload.mimeType ?? null,
         isPublic: payload.isPublic === "true",

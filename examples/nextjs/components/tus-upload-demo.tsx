@@ -90,7 +90,9 @@ export function TusUploadDemo() {
       }),
     });
 
-    const data = (await response.json().catch(() => null)) as RegisterResponse | null;
+    const data = (await response
+      .json()
+      .catch(() => null)) as RegisterResponse | null;
     const firstFile = data?.files?.[0];
     if (!response.ok || !data?.ok || !firstFile) {
       throw new Error(data?.error?.message ?? "Failed to register upload.");
@@ -118,9 +120,13 @@ export function TusUploadDemo() {
         }),
       });
 
-      const data = (await response.json().catch(() => null)) as CompletionResponse | null;
+      const data = (await response
+        .json()
+        .catch(() => null)) as CompletionResponse | null;
       if (!response.ok || !data?.ok) {
-        throw new Error(data?.error?.message ?? "Failed to await upload completion.");
+        throw new Error(
+          data?.error?.message ?? "Failed to await upload completion.",
+        );
       }
 
       if (data.completion) {
@@ -160,8 +166,8 @@ export function TusUploadDemo() {
       const upload = new tus.Upload(file, {
         endpoint: registration.uploadUrl,
         uploadSize: file.size,
-        // Use finite chunks so pause/resume can continue from last committed offset.
-        chunkSize: 8 * 1024 * 1024,
+        // Finite chunks improve checkpoint frequency for pause/resume UX.
+        chunkSize: 50 * 1024 * 1024,
         retryDelays: [0, 1000, 3000, 5000],
         metadata: {
           filename: file.name,
@@ -175,14 +181,19 @@ export function TusUploadDemo() {
         },
         onProgress: (uploaded, total) => {
           if (activeUploadIdRef.current !== registration.fileKeyId) return;
-          const effectiveUploaded = Math.max(uploaded, committedBytesRef.current);
-          const percent = total > 0 ? Math.round((effectiveUploaded / total) * 100) : 0;
+          const effectiveUploaded = Math.max(
+            uploaded,
+            committedBytesRef.current,
+          );
+          const percent =
+            total > 0 ? Math.round((effectiveUploaded / total) * 100) : 0;
           setProgressPercent(percent);
         },
         onChunkComplete: (_chunkSize, bytesAccepted, bytesTotal) => {
           if (activeUploadIdRef.current !== registration.fileKeyId) return;
           committedBytesRef.current = bytesAccepted;
-          const percent = bytesTotal > 0 ? Math.round((bytesAccepted / bytesTotal) * 100) : 0;
+          const percent =
+            bytesTotal > 0 ? Math.round((bytesAccepted / bytesTotal) * 100) : 0;
           setProgressPercent(percent);
         },
         onSuccess: () => {
@@ -238,7 +249,11 @@ export function TusUploadDemo() {
     if (!upload) return;
 
     // `abort(true)` asks the server to terminate the upload when supported.
-    await (upload as tus.Upload & { abort: (shouldTerminate?: boolean) => Promise<void> })
+    await (
+      upload as tus.Upload & {
+        abort: (shouldTerminate?: boolean) => Promise<void>;
+      }
+    )
       .abort(true)
       .catch(() => undefined);
 
@@ -265,7 +280,8 @@ export function TusUploadDemo() {
   const canPause = state === "uploading";
   const canResume = state === "paused";
   const canCancel = state === "uploading" || state === "paused";
-  const canReset = hasFile || state !== "idle" || progressPercent > 0 || !!errorMessage;
+  const canReset =
+    hasFile || state !== "idle" || progressPercent > 0 || !!errorMessage;
 
   return (
     <div className="space-y-4">
@@ -297,7 +313,7 @@ export function TusUploadDemo() {
         >
           Choose file
         </Button>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           {selectedFile
             ? `${selectedFile.name} (${Math.max(1, Math.round(selectedFile.size / 1024))} KB)`
             : "No file selected"}
@@ -358,22 +374,30 @@ export function TusUploadDemo() {
           <span className="text-muted-foreground">Status</span>
           <span className="font-medium">{state}</span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-muted">
+        <div className="bg-muted h-2 overflow-hidden rounded-full">
           <div
-            className="h-full bg-foreground transition-all"
+            className="bg-foreground h-full transition-all"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
-        <p className="text-sm text-muted-foreground">Progress: {progressPercent}%</p>
+        <p className="text-muted-foreground text-sm">
+          Progress: {progressPercent}%
+        </p>
       </div>
 
       {lastFileKeyId ? (
-        <p className="text-xs text-muted-foreground">File Key ID: {lastFileKeyId}</p>
+        <p className="text-muted-foreground text-xs">
+          File Key ID: {lastFileKeyId}
+        </p>
       ) : null}
       {lastAccessKey ? (
-        <p className="text-xs text-muted-foreground">Access Key: {lastAccessKey}</p>
+        <p className="text-muted-foreground text-xs">
+          Access Key: {lastAccessKey}
+        </p>
       ) : null}
-      {errorMessage ? <p className="text-sm text-red-500">Error: {errorMessage}</p> : null}
+      {errorMessage ? (
+        <p className="text-sm text-red-500">Error: {errorMessage}</p>
+      ) : null}
     </div>
   );
 }

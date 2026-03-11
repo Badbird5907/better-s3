@@ -18,9 +18,9 @@ import {
   createUploadEventEnvelope,
   normalizeFileKeyMetadata,
 } from "@silo-storage/shared";
-import { completeFileKeyFromCallback } from "@/lib/upload/register";
 
 import { env } from "@/env";
+import { completeFileKeyFromCallback } from "@/lib/upload/register";
 
 const schema = z.union([
   z.object({
@@ -30,12 +30,12 @@ const schema = z.union([
       fileKeyId: z.string(),
       accessKey: z.string(),
       fileName: z.string(),
-      claimedSize: z.number(),
+      claimedSize: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
       claimedHash: z.string().nullable(),
       claimedMimeType: z.string().nullable(),
       actualHash: z.string().nullable(),
       actualMimeType: z.string(),
-      actualSize: z.number(),
+      actualSize: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
       adapterKey: z.string(),
       projectId: z.string(),
       isPublic: z.boolean().optional(),
@@ -221,7 +221,10 @@ export async function POST(request: Request) {
             idempotencyKey: uploadCompletedEvent.id,
           });
         } catch (enqueueError) {
-          console.error("Failed to enqueue upload completion webhook:", enqueueError);
+          console.error(
+            "Failed to enqueue upload completion webhook:",
+            enqueueError,
+          );
         }
       }
 
