@@ -4,7 +4,7 @@ import { eq, sql } from "@silo/db";
 import { db } from "@silo/db/client";
 import { projects, usageDaily, usageEvents } from "@silo/db/schema";
 
-import { env } from "../../../../env";
+import { env } from "@/env";
 
 const schema = z.object({
   projectId: z.string(),

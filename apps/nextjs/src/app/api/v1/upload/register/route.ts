@@ -1,15 +1,15 @@
-import { env } from "../../../../../env";
+import { env } from "@/env";
 import {
   authenticateRequest,
   jsonError,
   validateEnvironmentAccess,
   validateProjectAccess,
-} from "../../../../../lib/api-key-middleware";
-import { createDevUploadEventStream } from "../../../../../lib/upload/dev-sse";
+} from "@/lib/api-key-middleware";
+import { createDevUploadEventStream } from "@/lib/upload/dev-sse";
 import {
   registerUploadBodySchema,
   registerFileKeyIntent,
-} from "../../../../../lib/upload/register";
+} from "@/lib/upload/register";
 
 export async function POST(request: Request) {
   const authResult = await authenticateRequest(request);

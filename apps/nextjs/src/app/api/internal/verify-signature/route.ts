@@ -4,7 +4,7 @@ import { eq } from "@silo/db";
 import { db } from "@silo/db/client";
 import { apiKeys, projectEnvironments } from "@silo/db/schema";
 
-import { env } from "../../../../env";
+import { env } from "@/env";
 
 /**
  * Internal endpoint for Cloudflare Worker to verify upload URL signatures.

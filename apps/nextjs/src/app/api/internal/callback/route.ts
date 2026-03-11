@@ -17,7 +17,7 @@ import { publishMessage } from "@silo/redis";
 import { createUploadEventEnvelope } from "@silo/shared";
 import { completeFileKeyFromCallback } from "@/lib/upload/register";
 
-import { env } from "../../../../env";
+import { env } from "@/env";
 
 const schema = z.union([
   z.object({

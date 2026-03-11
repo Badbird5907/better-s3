@@ -2,7 +2,7 @@ import { and, eq } from "@silo/db";
 import { db } from "@silo/db/client";
 import { fileKeys } from "@silo/db/schema";
 
-import { env } from "../../../../env";
+import { env } from "@/env";
 
 export async function POST(request: Request) {
   const header = request.headers.get("Authorization");

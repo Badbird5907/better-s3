@@ -9,7 +9,7 @@ import { db } from "@silo/db/client";
 import { handleCallback } from "@vercel/queue";
 import { queuedWebhookMessageSchema } from "@silo/api/services";
 
-import { env } from "../../../../../env";
+import { env } from "@/env";
 
 interface QueueMetadata {
   messageId?: string;
