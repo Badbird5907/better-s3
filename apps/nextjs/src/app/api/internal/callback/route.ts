@@ -14,7 +14,10 @@ import {
   usageEvents,
 } from "@silo-storage/db/schema";
 import { publishMessage } from "@silo-storage/redis";
-import { createUploadEventEnvelope } from "@silo-storage/shared";
+import {
+  createUploadEventEnvelope,
+  normalizeFileKeyMetadata,
+} from "@silo-storage/shared";
 import { completeFileKeyFromCallback } from "@/lib/upload/register";
 
 import { env } from "@/env";
@@ -198,6 +201,7 @@ export async function POST(request: Request) {
           hash: file.hash,
           mimeType: file.mimeType,
           size: file.size,
+          metadata: normalizeFileKeyMetadata(fileKey.metadata),
         },
         `upload.completed:${fileKey.id}`,
       );

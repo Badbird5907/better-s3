@@ -44,6 +44,7 @@ type SecretResolution =
 
 interface DeliveryChannel {
   url: string;
+  payload: string;
   getLatestStatus: () => Promise<string | null | undefined>;
   getNextAttemptNumber: () => Promise<number>;
   resolveSecret: () => Promise<SecretResolution>;
@@ -53,7 +54,6 @@ interface DeliveryChannel {
 async function deliverChannel(
   channel: DeliveryChannel,
   input: {
-    payload: string;
     maxAttempts: number;
     commonHeaders: Record<string, string>;
   },
@@ -78,7 +78,7 @@ async function deliverChannel(
       return false;
     }
 
-    const signed = await signWebhookPayload(input.payload, resolvedSecret.secret);
+    const signed = await signWebhookPayload(channel.payload, resolvedSecret.secret);
     const response = await fetch(channel.url, {
       method: "POST",
       headers: {
@@ -86,7 +86,7 @@ async function deliverChannel(
         "X-Silo-Signature": signed.signature,
         "X-Silo-Timestamp": String(signed.timestamp),
       },
-      body: input.payload,
+      body: channel.payload,
     });
 
     const responseBody = (await response.text().catch(() => "")).slice(0, 2000);
@@ -137,7 +137,7 @@ export const POST = handleCallback(async (rawQueueMessage, metadata) => {
   }
 
   const maxAttempts = queueMessage.maxAttempts ?? 8;
-  const payload = JSON.stringify(queueMessage.event);
+  const webhookPayload = JSON.stringify(queueMessage.event);
   const commonHeaders = {
     "Content-Type": "application/json",
     "User-Agent": "silo-webhooks/1.0",
@@ -169,6 +169,7 @@ export const POST = handleCallback(async (rawQueueMessage, metadata) => {
   if (webhookUrl && webhookSecret) {
     channels.push({
       url: webhookUrl,
+      payload: webhookPayload,
       getLatestStatus: async () =>
         (await getLatestWebhookAttempt(db, queueMessage.event.id))?.status,
       getNextAttemptNumber: async () =>
@@ -189,8 +190,13 @@ export const POST = handleCallback(async (rawQueueMessage, metadata) => {
   }
 
   if (callbackTarget?.callbackUrl) {
+    const callbackPayload = JSON.stringify({
+      metadata: callbackTarget.callbackMetadata,
+      data: queueMessage.event,
+    });
     channels.push({
       url: callbackTarget.callbackUrl,
+      payload: callbackPayload,
       getLatestStatus: async () =>
         (await getLatestCallbackAttempt(db, queueMessage.event.id))?.status,
       getNextAttemptNumber: async () =>
@@ -233,7 +239,6 @@ export const POST = handleCallback(async (rawQueueMessage, metadata) => {
   let shouldRetryAny = false;
   for (const channel of channels) {
     const retry = await deliverChannel(channel, {
-      payload,
       maxAttempts,
       commonHeaders,
     });

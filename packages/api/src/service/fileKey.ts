@@ -2,7 +2,10 @@ import type { Db } from "@silo-storage/db/client";
 import { and, eq, sql } from "@silo-storage/db";
 import { fileKeys, projects, usageDaily, usageEvents } from "@silo-storage/db/schema";
 import { publishMessage } from "@silo-storage/redis";
-import { createUploadEventEnvelope } from "@silo-storage/shared";
+import {
+  createUploadEventEnvelope,
+  normalizeFileKeyMetadata,
+} from "@silo-storage/shared";
 import { enqueueUploadWebhookEvent } from "./webhook";
 
 export class UploadFailureError extends Error {
@@ -176,6 +179,10 @@ export async function markUploadAsFailed(
     .where(eq(fileKeys.id, opts.fileKeyId))
     .returning();
 
+  if (!updated) {
+    throw new Error("Failed to update file key status");
+  }
+
   // this is the message
   const uploadFailedEvent = createUploadEventEnvelope(
     "upload.failed",
@@ -183,6 +190,7 @@ export async function markUploadAsFailed(
       environmentId: opts.environmentId,
       projectId: opts.projectId,
       fileKeyId: opts.fileKeyId,
+      metadata: normalizeFileKeyMetadata(updated.metadata),
       error: opts.error ?? "Upload failed",
     },
     `upload.failed:${opts.fileKeyId}`,

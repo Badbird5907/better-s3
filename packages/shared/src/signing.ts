@@ -74,10 +74,7 @@ export async function deriveSigningSecret(
   apiKey: string,
   masterSigningSecret: string,
 ): Promise<string> {
-  // First, hash the API key (this is what's stored in the database)
   const keyHash = await hashString(apiKey);
-
-  // Then derive the signing secret using HMAC
   return deriveSigningSecretFromHash(keyHash, masterSigningSecret);
 }
 
@@ -143,7 +140,6 @@ export async function generateSignedUploadUrl(
   apiKey: string,
   masterSigningSecret: string,
 ): Promise<string> {
-  // Derive the signing secret from the API key
   const signingSecret = await deriveSigningSecret(apiKey, masterSigningSecret);
 
   const payload: Record<string, string> = {
@@ -156,7 +152,6 @@ export async function generateSignedUploadUrl(
     keyId: params.keyId,
   };
 
-  // Add optional params if provided
   if (params.hash) {
     payload.hash = params.hash;
   }
@@ -178,7 +173,6 @@ export async function generateSignedUploadUrl(
     `${protocol}://${projectSlug}.${workerDomain}/ingest/tus`,
   );
   Object.entries(payload).forEach(([key, value]) => {
-    // Skip type as it's not needed in query params
     if (key !== "type") {
       url.searchParams.set(key, value);
     }
@@ -347,7 +341,6 @@ export async function verifySignedUploadUrl(
     throw new Error("Missing signature in URL");
   }
 
-  // Extract environmentId and fileKeyId from path: /upload/{environmentId}/{fileKeyId}
   const pathParts = urlObj.pathname.split("/").filter(Boolean);
   if (pathParts.length < 3 || pathParts[0] !== "upload") {
     throw new Error("Invalid upload URL path");
@@ -359,7 +352,6 @@ export async function verifySignedUploadUrl(
     throw new Error("Missing environmentId or fileKeyId in URL path");
   }
 
-  // Extract query params
   const fileName = urlObj.searchParams.get("fileName");
   const sizeStr = urlObj.searchParams.get("size");
   const keyId = urlObj.searchParams.get("keyId");
@@ -379,7 +371,6 @@ export async function verifySignedUploadUrl(
     throw new Error("Invalid size parameter");
   }
 
-  // Check expiration if provided
   let expiresAt: number | undefined;
   if (expiresAtStr) {
     expiresAt = parseInt(expiresAtStr, 10);
@@ -392,7 +383,6 @@ export async function verifySignedUploadUrl(
     }
   }
 
-  // Rebuild payload for signature verification
   const payload: Record<string, string> = {
     type: "upload",
     environmentId,
@@ -406,7 +396,6 @@ export async function verifySignedUploadUrl(
   if (mimeType) payload.mimeType = mimeType;
   if (expiresAtStr) payload.expiresAt = expiresAtStr;
 
-  // Verify signature
   const expectedSignature = await createSignature(payload, apiKeySecret);
   if (!timingSafeEqual(signature, expectedSignature)) {
     throw new Error("Invalid signature");
@@ -441,7 +430,6 @@ export async function verifySignedDownloadUrl(
     throw new Error("Missing signature in URL");
   }
 
-  // Extract fileKeyId from path: /download/{fileKeyId}
   const pathParts = urlObj.pathname.split("/").filter(Boolean);
   if (pathParts.length < 2 || pathParts[0] !== "download") {
     throw new Error("Invalid download URL path");
@@ -452,7 +440,6 @@ export async function verifySignedDownloadUrl(
     throw new Error("Missing fileKeyId in URL path");
   }
 
-  // Extract query params
   const accessKey = urlObj.searchParams.get("accessKey");
   const expiresAtStr = urlObj.searchParams.get("expiresAt");
   const fileName = urlObj.searchParams.get("fileName");
@@ -466,13 +453,11 @@ export async function verifySignedDownloadUrl(
     throw new Error("Invalid expiresAt parameter");
   }
 
-  // Check expiration
   const now = Math.floor(Date.now() / 1000);
   if (now > expiresAt) {
     throw new Error("Signed URL has expired");
   }
 
-  // Rebuild payload for signature verification
   const payload: Record<string, string> = {
     type: "download",
     fileKeyId,
@@ -481,7 +466,6 @@ export async function verifySignedDownloadUrl(
   };
   if (fileName) payload.fileName = fileName;
 
-  // Verify signature
   const expectedSignature = await createSignature(payload, signingSecret);
   if (!timingSafeEqual(signature, expectedSignature)) {
     throw new Error("Invalid signature");
@@ -504,11 +488,9 @@ async function createSignature(
   payload: Record<string, string>,
   secret: string,
 ): Promise<string> {
-  // Sort keys for consistent signature
   const sortedKeys = Object.keys(payload).sort();
   const message = sortedKeys.map((key) => `${key}=${payload[key]}`).join("&");
 
-  // Use Web Crypto API (works in Node.js 15+, browsers, and Cloudflare Workers)
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secret);
   const messageData = encoder.encode(message);
@@ -527,14 +509,11 @@ async function createSignature(
     messageData,
   );
 
-  // Convert to hex string
   const signatureArray = Array.from(new Uint8Array(signatureBuffer));
   return signatureArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/**
- * Timing-safe string comparison to prevent timing attacks
- */
+// crypto.subtle does not have timingSafeEqual
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) {
     return false;

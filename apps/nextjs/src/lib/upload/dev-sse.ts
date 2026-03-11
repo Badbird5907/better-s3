@@ -1,3 +1,4 @@
+import { normalizeFileKeyMetadata } from "@silo-storage/shared";
 import type { UploadEventEnvelope } from "@silo-storage/shared";
 
 import { and, eq } from "@silo-storage/db";
@@ -79,6 +80,7 @@ export async function createDevUploadEventStream(request: Request, input: {
                   hash: fileKey.file?.hash ?? null,
                   mimeType: fileKey.file?.mimeType ?? "application/octet-stream",
                   size: fileKey.file?.size ?? 0,
+                  metadata: normalizeFileKeyMetadata(fileKey.metadata),
                 },
               }
             : {
@@ -90,6 +92,7 @@ export async function createDevUploadEventStream(request: Request, input: {
                   environmentId: fileKey.environmentId,
                   projectId: fileKey.projectId,
                   fileKeyId: fileKey.id,
+                  metadata: normalizeFileKeyMetadata(fileKey.metadata),
                   error: "Upload failed",
                 },
               };

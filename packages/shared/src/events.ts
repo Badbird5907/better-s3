@@ -1,6 +1,15 @@
 export const uploadEventTypes = ["upload.completed", "upload.failed"] as const;
 export type UploadEventType = (typeof uploadEventTypes)[number];
 
+export type FileKeyMetadata = Record<string, unknown>;
+
+export function normalizeFileKeyMetadata(value: unknown): FileKeyMetadata {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as FileKeyMetadata;
+}
+
 export interface UploadCompletedEventData {
   environmentId: string;
   projectId: string;
@@ -11,12 +20,14 @@ export interface UploadCompletedEventData {
   hash: string | null;
   mimeType: string;
   size: number;
+  metadata: FileKeyMetadata;
 }
 
 export interface UploadFailedEventData {
   environmentId: string;
   projectId: string;
   fileKeyId: string;
+  metadata: FileKeyMetadata;
   error: string;
 }
 

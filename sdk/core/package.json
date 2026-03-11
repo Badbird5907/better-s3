@@ -23,6 +23,11 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
+  "dependencies": {
+    "@silo-storage/shared": "workspace:*",
+    "nanoid": "^5.1.6",
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "@silo-storage/eslint-config": "workspace:*",
     "@silo-storage/prettier-config": "workspace:*",

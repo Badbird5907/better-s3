@@ -43,6 +43,13 @@ function getStringField(value: unknown, key: string): string | null {
   return typeof candidate === "string" && candidate.length > 0 ? candidate : null;
 }
 
+function getObjectField(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
 function getFileKeyIdFromEventData(data: unknown): string | null {
   return getStringField(data, "fileKeyId");
 }
@@ -74,6 +81,7 @@ export async function getFileCallbackTargetForEvent(
   return {
     callbackUrl,
     callbackApiKeyId: getStringField(fileKey?.callbackMetadata, "apiKeyId"),
+    callbackMetadata: getObjectField(fileKey?.callbackMetadata),
   };
 }
 

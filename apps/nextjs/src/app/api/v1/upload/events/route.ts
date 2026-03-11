@@ -2,6 +2,7 @@ import { and, eq } from "@silo-storage/db";
 import { db } from "@silo-storage/db/client";
 import { fileKeys } from "@silo-storage/db/schema";
 import { asyncWaitForMessage } from "@silo-storage/redis";
+import { normalizeFileKeyMetadata } from "@silo-storage/shared";
 
 import { env } from "@/env";
 import {
@@ -101,6 +102,7 @@ export async function GET(request: Request) {
                 data: {
                   fileKeyId: fileKey.id,
                   accessKey: fileKey.accessKey,
+                  metadata: normalizeFileKeyMetadata(fileKey.metadata),
                   status: fileKey.status,
                   file: fileKey.file
                     ? {
