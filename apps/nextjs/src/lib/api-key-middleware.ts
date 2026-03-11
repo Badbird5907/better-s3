@@ -1,13 +1,13 @@
 import { headers } from "next/headers";
 
-import { and, eq } from "@silo/db";
-import { db } from "@silo/db/client";
+import { and, eq } from "@silo-storage/db";
+import { db } from "@silo-storage/db/client";
 import {
   apiKeys,
   members,
   projectEnvironments,
   projects,
-} from "@silo/db/schema";
+} from "@silo-storage/db/schema";
 
 import { auth } from "@/auth/server";
 

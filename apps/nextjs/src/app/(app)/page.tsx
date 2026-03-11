@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 
-import { eq } from "@silo/db";
-import { db } from "@silo/db/client";
-import { organizations } from "@silo/db/schema";
+import { eq } from "@silo-storage/db";
+import { db } from "@silo-storage/db/client";
+import { organizations } from "@silo-storage/db/schema";
 
 import { getSession } from "@/auth/server";
 

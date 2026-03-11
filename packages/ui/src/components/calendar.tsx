@@ -9,8 +9,8 @@ import {
 } from "lucide-react";
 import { DayPicker, getDefaultClassNames } from "react-day-picker";
 
-import { Button, buttonVariants } from "@silo/ui/components/button";
-import { cn } from "@silo/ui/lib/utils";
+import { Button, buttonVariants } from "@silo-storage/ui/components/button";
+import { cn } from "@silo-storage/ui/lib/utils";
 
 function Calendar({
   className,

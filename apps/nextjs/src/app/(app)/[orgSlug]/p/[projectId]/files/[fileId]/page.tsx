@@ -29,8 +29,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@silo/ui/components/badge";
-import { Button } from "@silo/ui/components/button";
+import { Badge } from "@silo-storage/ui/components/badge";
+import { Button } from "@silo-storage/ui/components/button";
 import { FileStatusBadge } from "@/components/file-status-badge";
 import {
   Card,
@@ -38,7 +38,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@silo/ui/components/card";
+} from "@silo-storage/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -46,16 +46,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@silo/ui/components/dialog";
-import { Label } from "@silo/ui/components/label";
+} from "@silo-storage/ui/components/dialog";
+import { Label } from "@silo-storage/ui/components/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@silo/ui/components/select";
-import { Skeleton } from "@silo/ui/components/skeleton";
+} from "@silo-storage/ui/components/select";
+import { Skeleton } from "@silo-storage/ui/components/skeleton";
 
 import { getDownloadUrl } from "@/actions/file";
 import { useOrganization } from "@/hooks/use-organization";

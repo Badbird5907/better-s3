@@ -11,13 +11,13 @@
     "build": "turbo run build",
     "clean": "git clean -xdf node_modules",
     "clean:workspaces": "turbo run clean",
-    "auth:generate": "pnpm -F @silo/auth generate",
-    "db:push": "dotenv -e .env.local -- pnpm -F @silo/db push",
-    "db:generate": "dotenv -e .env.local -- pnpm -F @silo/db generate",
-    "db:migrate": "dotenv -e .env.local -- pnpm -F @silo/db migrate",
-    "db:studio": "turbo -F @silo/db studio",
+    "auth:generate": "pnpm -F @silo-storage/auth generate",
+    "db:push": "dotenv -e .env.local -- pnpm -F @silo-storage/db push",
+    "db:generate": "dotenv -e .env.local -- pnpm -F @silo-storage/db generate",
+    "db:migrate": "dotenv -e .env.local -- pnpm -F @silo-storage/db migrate",
+    "db:studio": "turbo -F @silo-storage/db studio",
     "dev": "docker compose up -d && turbo watch dev --continue",
-    "dev:next": "turbo watch dev -F @silo/nextjs...",
+    "dev:next": "turbo watch dev -F @silo-storage/nextjs...",
     "format": "turbo run format --continue -- --cache --cache-location .cache/.prettiercache",
     "format:fix": "turbo run format --continue -- --write --cache --cache-location .cache/.prettiercache",
     "lint": "turbo run lint --continue -- --cache --cache-location .cache/.eslintcache",
@@ -25,13 +25,13 @@
     "lint:ws": "pnpm dlx sherif@latest",
     "preinstall": "pnpm auto-export",
     "postinstall": "pnpm lint:ws",
-    "sdk:build": "pnpm --filter @silo/sdk-core --filter @silo/sdk-react build",
-    "sdk:typecheck": "pnpm --filter @silo/sdk-core --filter @silo/sdk-react typecheck",
+    "sdk:build": "pnpm --filter @silo-storage/sdk-core --filter @silo-storage/sdk-react build",
+    "sdk:typecheck": "pnpm --filter @silo-storage/sdk-core --filter @silo-storage/sdk-react typecheck",
     "typecheck": "turbo run typecheck",
-    "ui-add": "pnpm -F @silo/ui ui-add"
+    "ui-add": "pnpm -F @silo-storage/ui ui-add"
   },
   "devDependencies": {
-    "@silo/prettier-config": "workspace:*",
+    "@silo-storage/prettier-config": "workspace:*",
     "@turbo/gen": "^2.5.8",
     "dotenv-cli": "^10.0.0",
     "prettier": "catalog:",
@@ -39,5 +39,5 @@
     "turbo": "^2.5.8",
     "typescript": "catalog:"
   },
-  "prettier": "@silo/prettier-config"
+  "prettier": "@silo-storage/prettier-config"
 }

@@ -2,8 +2,8 @@
 
 This directory contains the client SDK packages:
 
-- `@silo/sdk-core`: framework-agnostic SDK utilities and shared signing exports.
-- `@silo/sdk-react`: React provider/hooks on top of `@silo/sdk-core`.
+- `@silo-storage/sdk-core`: framework-agnostic SDK utilities and shared signing exports.
+- `@silo-storage/sdk-react`: React provider/hooks on top of `@silo-storage/sdk-core`.
 
 ## Setup
 

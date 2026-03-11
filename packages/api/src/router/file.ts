@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod/v4";
 
-import { files, projects } from "@silo/db/schema";
+import { files, projects } from "@silo-storage/db/schema";
 
 import { organizationProcedure } from "../trpc";
 

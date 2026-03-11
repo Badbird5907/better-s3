@@ -4,7 +4,7 @@ import type * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
-import { cn } from "@silo/ui/lib/utils";
+import { cn } from "@silo-storage/ui/lib/utils";
 
 function Select({
   ...props

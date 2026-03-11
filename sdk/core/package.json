@@ -1,32 +1,36 @@
 {
-  "name": "@silo/sdk-core",
-  "private": true,
+  "name": "@silo-storage/sdk-core",
+  "version": "0.1.0",
   "type": "module",
   "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./src/index.ts"
+      "default": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "dev": "tsc",
+    "dev": "tsup --watch",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
-  "dependencies": {
-    "@silo/shared": "workspace:*"
-  },
   "devDependencies": {
-    "@silo/eslint-config": "workspace:*",
-    "@silo/prettier-config": "workspace:*",
-    "@silo/tsconfig": "workspace:*",
+    "@silo-storage/eslint-config": "workspace:*",
+    "@silo-storage/prettier-config": "workspace:*",
+    "@silo-storage/tsconfig": "workspace:*",
     "eslint": "catalog:",
     "prettier": "catalog:",
+    "tsup": "^8.5.1",
     "typescript": "catalog:"
   },
-  "prettier": "@silo/prettier-config"
+  "prettier": "@silo-storage/prettier-config"
 }

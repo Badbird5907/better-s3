@@ -2,16 +2,16 @@ import { headers } from "next/headers";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { and, eq, gt, isNull, or } from "@silo/db";
-import { db } from "@silo/db/client";
+import { and, eq, gt, isNull, or } from "@silo-storage/db";
+import { db } from "@silo-storage/db/client";
 import {
   apiKeys,
   fileKeys,
   members,
   projectEnvironments,
   projects,
-} from "@silo/db/schema";
-import { generateSignedUploadUrlFromHash } from "@silo/shared/signing";
+} from "@silo-storage/db/schema";
+import { generateSignedUploadUrlFromHash } from "@silo-storage/shared/signing";
 
 import { auth } from "@/auth/server";
 import { env } from "@/env";

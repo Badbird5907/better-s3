@@ -6,25 +6,25 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import { PanelLeftIcon } from "lucide-react";
 
-import { Button } from "@silo/ui/components/button";
-import { Input } from "@silo/ui/components/input";
-import { Separator } from "@silo/ui/components/separator";
+import { Button } from "@silo-storage/ui/components/button";
+import { Input } from "@silo-storage/ui/components/input";
+import { Separator } from "@silo-storage/ui/components/separator";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@silo/ui/components/sheet";
-import { Skeleton } from "@silo/ui/components/skeleton";
+} from "@silo-storage/ui/components/sheet";
+import { Skeleton } from "@silo-storage/ui/components/skeleton";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@silo/ui/components/tooltip";
-import { useIsMobile } from "@silo/ui/hooks/use-mobile";
-import { cn } from "@silo/ui/lib/utils";
+} from "@silo-storage/ui/components/tooltip";
+import { useIsMobile } from "@silo-storage/ui/hooks/use-mobile";
+import { cn } from "@silo-storage/ui/lib/utils";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;

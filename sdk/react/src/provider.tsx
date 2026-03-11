@@ -1,4 +1,4 @@
-import type { SiloClient } from "@silo/sdk-core";
+import type { SiloClient } from "@silo-storage/sdk-core";
 import type { ReactNode } from "react";
 import { createContext, useContext } from "react";
 

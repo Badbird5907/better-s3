@@ -18,15 +18,15 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@silo/ui/components/sidebar";
+} from "@silo-storage/ui/components/sidebar";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@silo/ui/components/select";
-import { Button } from "@silo/ui/components/button";
+} from "@silo-storage/ui/components/select";
+import { Button } from "@silo-storage/ui/components/button";
 
 import { authClient } from "@/auth/client";
 import { NavMain } from "@/components/nav-main";

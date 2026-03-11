@@ -1,5 +1,5 @@
 {
-  "name": "@silo/db",
+  "name": "@silo-storage/db",
   "private": true,
   "type": "module",
   "exports": {
@@ -31,9 +31,9 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@silo/eslint-config": "workspace:*",
-    "@silo/prettier-config": "workspace:*",
-    "@silo/tsconfig": "workspace:*",
+    "@silo-storage/eslint-config": "workspace:*",
+    "@silo-storage/prettier-config": "workspace:*",
+    "@silo-storage/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "drizzle-kit": "^0.31.5",
     "eslint": "catalog:",
@@ -41,5 +41,5 @@
     "tsx": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@silo/prettier-config"
+  "prettier": "@silo-storage/prettier-config"
 }

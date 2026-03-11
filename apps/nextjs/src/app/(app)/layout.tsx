@@ -1,4 +1,4 @@
-import { SidebarInset, SidebarProvider } from "@silo/ui/components/sidebar";
+import { SidebarInset, SidebarProvider } from "@silo-storage/ui/components/sidebar";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { MobileNav } from "@/components/mobile-nav";

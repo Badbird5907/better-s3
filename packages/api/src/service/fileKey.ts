@@ -1,8 +1,8 @@
-import type { Db } from "@silo/db/client";
-import { and, eq, sql } from "@silo/db";
-import { fileKeys, projects, usageDaily, usageEvents } from "@silo/db/schema";
-import { publishMessage } from "@silo/redis";
-import { createUploadEventEnvelope } from "@silo/shared";
+import type { Db } from "@silo-storage/db/client";
+import { and, eq, sql } from "@silo-storage/db";
+import { fileKeys, projects, usageDaily, usageEvents } from "@silo-storage/db/schema";
+import { publishMessage } from "@silo-storage/redis";
+import { createUploadEventEnvelope } from "@silo-storage/shared";
 import { enqueueUploadWebhookEvent } from "./webhook";
 
 export class UploadFailureError extends Error {

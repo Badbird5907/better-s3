@@ -1,5 +1,5 @@
 {
-  "extends": "@silo/tsconfig/base.json",
+  "extends": "@silo-storage/tsconfig/base.json",
   "compilerOptions": {
     "types": ["node"],
     "module": "ESNext",

@@ -114,12 +114,12 @@ export const posts = pgTable("posts", (t) => ({
 
 #### Querying the Database
 
-The database client is exported from `@silo/db/client`. Here are some example queries:
+The database client is exported from `@silo-storage/db/client`. Here are some example queries:
 
 ```typescript
-import { db } from "@silo/db/client";
-import { posts } from "@silo/db/schema";
-import { eq, desc } from "@silo/db";
+import { db } from "@silo-storage/db/client";
+import { posts } from "@silo-storage/db/schema";
+import { eq, desc } from "@silo-storage/db";
 
 // Find all posts
 const allPosts = await db.query.posts.findMany({
@@ -172,9 +172,9 @@ Here's an example of a simple tRPC router:
 ```typescript
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
-import { desc, eq } from "@silo/db";
-import { posts } from "@silo/db/schema";
-import { CreatePostSchema } from "@silo/types";
+import { desc, eq } from "@silo-storage/db";
+import { posts } from "@silo-storage/db/schema";
+import { CreatePostSchema } from "@silo-storage/types";
 import { protectedProcedure, publicProcedure } from "../trpc";
 
 export const postRouter = {
@@ -235,7 +235,7 @@ However, if you make any changes to the auth configuration (e.g., adding new pro
 
 ```bash
 # Generate the Better Auth schema
-pnpm --filter @silo/auth generate
+pnpm --filter @silo-storage/auth generate
 ```
 
 This command runs the Better Auth CLI with the following configuration:
@@ -247,7 +247,7 @@ The generation process:
 
 1. Reads the Better Auth configuration from `packages/auth/script/auth-cli.ts`
 2. Generates the appropriate database schema based on your auth setup
-3. Outputs a Drizzle-compatible schema file to the `@silo/db` package
+3. Outputs a Drizzle-compatible schema file to the `@silo-storage/db` package
 
 > **Note**: The `auth-cli.ts` file is placed in the `script/` directory (instead of `src/`) to prevent accidental imports from other parts of the codebase. This file is exclusively for CLI schema generation and should **not** be used directly in your application. For runtime authentication, use the configuration from `packages/auth/src/index.ts`.
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@silo/ui/components/button";
+import { Button } from "@silo-storage/ui/components/button";
 
 import { getSession } from "@/auth/server";
 

@@ -9,7 +9,7 @@ import {
   projects,
   usageDaily,
   usageEvents,
-} from "@silo/db/schema";
+} from "@silo-storage/db/schema";
 
 import { organizationProcedure } from "../trpc";
 

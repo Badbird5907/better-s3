@@ -1,5 +1,5 @@
 {
-  "name": "@silo/api",
+  "name": "@silo-storage/api",
   "private": true,
   "type": "module",
   "exports": {
@@ -19,12 +19,12 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@silo/auth": "workspace:*",
-    "@silo/db": "workspace:*",
-    "@silo/redis": "workspace:*",
-    "@silo/shared": "workspace:*",
-    "@silo/types": "workspace:*",
-    "@silo/validators": "workspace:*",
+    "@silo-storage/auth": "workspace:*",
+    "@silo-storage/db": "workspace:*",
+    "@silo-storage/redis": "workspace:*",
+    "@silo-storage/shared": "workspace:*",
+    "@silo-storage/types": "workspace:*",
+    "@silo-storage/validators": "workspace:*",
     "@t3-oss/env-core": "^0.13.10",
     "@trpc/server": "catalog:",
     "@upstash/redis": "^1.36.1",
@@ -35,13 +35,13 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@silo/eslint-config": "workspace:*",
-    "@silo/prettier-config": "workspace:*",
-    "@silo/tsconfig": "workspace:*",
+    "@silo-storage/eslint-config": "workspace:*",
+    "@silo-storage/prettier-config": "workspace:*",
+    "@silo-storage/tsconfig": "workspace:*",
     "@types/react": "catalog:react19",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@silo/prettier-config"
+  "prettier": "@silo-storage/prettier-config"
 }

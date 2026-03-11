@@ -30,15 +30,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@silo/ui/components/badge";
-import { Button } from "@silo/ui/components/button";
+import { Badge } from "@silo-storage/ui/components/badge";
+import { Button } from "@silo-storage/ui/components/button";
 import { FileStatusBadge } from "@/components/file-status-badge";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@silo/ui/components/card";
+} from "@silo-storage/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -46,7 +46,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@silo/ui/components/dialog";
+} from "@silo-storage/ui/components/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,16 +54,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@silo/ui/components/dropdown-menu";
-import { Input } from "@silo/ui/components/input";
+} from "@silo-storage/ui/components/dropdown-menu";
+import { Input } from "@silo-storage/ui/components/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@silo/ui/components/select";
-import { Skeleton } from "@silo/ui/components/skeleton";
+} from "@silo-storage/ui/components/select";
+import { Skeleton } from "@silo-storage/ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -71,7 +71,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@silo/ui/components/table";
+} from "@silo-storage/ui/components/table";
 
 import { getDownloadUrl } from "@/actions/file";
 import { UploadDialog } from "@/components/upload-dialog";

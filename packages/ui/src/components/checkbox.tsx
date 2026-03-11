@@ -4,7 +4,7 @@ import type * as React from "react";
 import { CheckIcon } from "lucide-react";
 import { Checkbox as CheckboxPrimitive } from "radix-ui";
 
-import { cn } from "@silo/ui/lib/utils";
+import { cn } from "@silo-storage/ui/lib/utils";
 
 function Checkbox({
   className,

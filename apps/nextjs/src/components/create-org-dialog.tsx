@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Button } from "@silo/ui/components/button";
+import { Button } from "@silo-storage/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -10,9 +10,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@silo/ui/components/dialog";
-import { Input } from "@silo/ui/components/input";
-import { Label } from "@silo/ui/components/label";
+} from "@silo-storage/ui/components/dialog";
+import { Input } from "@silo-storage/ui/components/input";
+import { Label } from "@silo-storage/ui/components/label";
 
 interface CreateOrgDialogProps {
   open: boolean;

@@ -1,6 +1,6 @@
-import type { Db } from "@silo/db/client";
-import { and, eq } from "@silo/db";
-import { projectEnvironments } from "@silo/db/schema";
+import type { Db } from "@silo-storage/db/client";
+import { and, eq } from "@silo-storage/db";
+import { projectEnvironments } from "@silo-storage/db/schema";
 import { nanoid } from "nanoid";
 import { env } from "../env";
 const WEBHOOK_EVENTS = ["upload.completed", "upload.failed"] as const;

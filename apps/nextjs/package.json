@@ -1,5 +1,5 @@
 {
-  "name": "@silo/nextjs",
+  "name": "@silo-storage/nextjs",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,14 +14,14 @@
   },
   "dependencies": {
     "@better-auth/sso": "^1.4.17",
-    "@silo/api": "workspace:*",
-    "@silo/auth": "workspace:*",
-    "@silo/db": "workspace:*",
-    "@silo/redis": "workspace:*",
-    "@silo/shared": "workspace:*",
-    "@silo/types": "workspace:*",
-    "@silo/ui": "workspace:*",
-    "@silo/validators": "workspace:*",
+    "@silo-storage/api": "workspace:*",
+    "@silo-storage/auth": "workspace:*",
+    "@silo-storage/db": "workspace:*",
+    "@silo-storage/redis": "workspace:*",
+    "@silo-storage/shared": "workspace:*",
+    "@silo-storage/types": "workspace:*",
+    "@silo-storage/ui": "workspace:*",
+    "@silo-storage/validators": "workspace:*",
     "@t3-oss/env-nextjs": "^0.13.10",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
@@ -44,10 +44,10 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@silo/eslint-config": "workspace:*",
-    "@silo/prettier-config": "workspace:*",
-    "@silo/tailwind-config": "workspace:*",
-    "@silo/tsconfig": "workspace:*",
+    "@silo-storage/eslint-config": "workspace:*",
+    "@silo-storage/prettier-config": "workspace:*",
+    "@silo-storage/tailwind-config": "workspace:*",
+    "@silo-storage/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:react19",
     "@types/react-dom": "catalog:react19",
@@ -58,7 +58,7 @@
     "tw-animate-css": "^1.4.0",
     "typescript": "catalog:"
   },
-  "prettier": "@silo/prettier-config",
+  "prettier": "@silo-storage/prettier-config",
   "pnpm": {
     "overrides": {
       "@types/react": "catalog:react19",

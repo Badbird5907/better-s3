@@ -4,17 +4,17 @@ import {
   enqueueUploadWebhookEvent,
   markUploadAsFailed,
   UploadFailureError,
-} from "@silo/api/services";
-import { eq, sql } from "@silo/db";
-import { db } from "@silo/db/client";
+} from "@silo-storage/api/services";
+import { eq, sql } from "@silo-storage/db";
+import { db } from "@silo-storage/db/client";
 import {
   projectEnvironments,
   projects,
   usageDaily,
   usageEvents,
-} from "@silo/db/schema";
-import { publishMessage } from "@silo/redis";
-import { createUploadEventEnvelope } from "@silo/shared";
+} from "@silo-storage/db/schema";
+import { publishMessage } from "@silo-storage/redis";
+import { createUploadEventEnvelope } from "@silo-storage/shared";
 import { completeFileKeyFromCallback } from "@/lib/upload/register";
 
 import { env } from "@/env";

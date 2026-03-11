@@ -1,5 +1,5 @@
 {
-  "name": "@silo/cf-worker",
+  "name": "@silo-storage/cf-worker",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,20 +12,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@silo/shared": "workspace:*",
+    "@silo-storage/shared": "workspace:*",
     "file-type": "^21.3.0",
     "hono": "^4.7.4",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250109.0",
-    "@silo/eslint-config": "workspace:*",
-    "@silo/prettier-config": "workspace:*",
-    "@silo/tsconfig": "workspace:*",
+    "@silo-storage/eslint-config": "workspace:*",
+    "@silo-storage/prettier-config": "workspace:*",
+    "@silo-storage/tsconfig": "workspace:*",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:",
     "wrangler": "^4.63.0"
   },
-  "prettier": "@silo/prettier-config"
+  "prettier": "@silo-storage/prettier-config"
 }

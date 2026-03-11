@@ -4,16 +4,16 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Globe, Key, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@silo/ui/components/avatar";
-import { Badge } from "@silo/ui/components/badge";
-import { Button } from "@silo/ui/components/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@silo-storage/ui/components/avatar";
+import { Badge } from "@silo-storage/ui/components/badge";
+import { Button } from "@silo-storage/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@silo/ui/components/card";
+} from "@silo-storage/ui/components/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,8 +21,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@silo/ui/components/dropdown-menu";
-import { Skeleton } from "@silo/ui/components/skeleton";
+} from "@silo-storage/ui/components/dropdown-menu";
+import { Skeleton } from "@silo-storage/ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -30,7 +30,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@silo/ui/components/table";
+} from "@silo-storage/ui/components/table";
 
 import { useTRPC } from "@/trpc/react";
 import { CreateApiKeyDialog } from "./create-api-key-dialog";

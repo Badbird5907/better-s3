@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-} from "@silo/ui/components/dropdown-menu";
+} from "@silo-storage/ui/components/dropdown-menu";
 
 import { env } from "@/env";
 

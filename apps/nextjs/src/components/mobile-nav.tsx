@@ -3,8 +3,8 @@
 import { LogOut, MenuIcon, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@silo/ui/components/avatar";
-import { Button } from "@silo/ui/components/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@silo-storage/ui/components/avatar";
+import { Button } from "@silo-storage/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,8 +13,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@silo/ui/components/dropdown-menu";
-import { useSidebar } from "@silo/ui/components/sidebar";
+} from "@silo-storage/ui/components/dropdown-menu";
+import { useSidebar } from "@silo-storage/ui/components/sidebar";
 
 import { authClient } from "@/auth/client";
 

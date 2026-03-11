@@ -5,15 +5,15 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Layers, MoreHorizontal, Pencil, Trash2, WebhookIcon } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@silo/ui/components/badge";
-import { Button } from "@silo/ui/components/button";
+import { Badge } from "@silo-storage/ui/components/badge";
+import { Button } from "@silo-storage/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@silo/ui/components/card";
+} from "@silo-storage/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@silo/ui/components/dialog";
+} from "@silo-storage/ui/components/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,17 +29,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@silo/ui/components/dropdown-menu";
-import { Input } from "@silo/ui/components/input";
-import { Label } from "@silo/ui/components/label";
+} from "@silo-storage/ui/components/dropdown-menu";
+import { Input } from "@silo-storage/ui/components/input";
+import { Label } from "@silo-storage/ui/components/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@silo/ui/components/select";
-import { Skeleton } from "@silo/ui/components/skeleton";
+} from "@silo-storage/ui/components/select";
+import { Skeleton } from "@silo-storage/ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -47,12 +47,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@silo/ui/components/table";
+} from "@silo-storage/ui/components/table";
 
 import { useTRPC } from "@/trpc/react";
 import { CreateEnvironmentDialog } from "./create-environment-dialog";
 import { ManageEnvironmentWebhookDialog } from "./manage-environment-webhook-dialog";
-import { Tooltip,TooltipContent,TooltipTrigger } from "@silo/ui/components/tooltip";
+import { Tooltip,TooltipContent,TooltipTrigger } from "@silo-storage/ui/components/tooltip";
 
 interface EnvironmentsListProps {
   projectId: string;

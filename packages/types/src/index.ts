@@ -1,6 +1,6 @@
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
-import * as schema from "@silo/db/schema";
+import * as schema from "@silo-storage/db/schema";
 
 export type Schema = typeof schema;
 

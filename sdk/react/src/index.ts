@@ -1,2 +1,2 @@
 export * from "./provider";
-export * from "@silo/sdk-core"
+export * from "@silo-storage/sdk-core"

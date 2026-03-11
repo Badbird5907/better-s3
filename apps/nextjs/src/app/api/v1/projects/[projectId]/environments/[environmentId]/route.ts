@@ -4,8 +4,8 @@ import {
   deleteEnvironment,
   scheduleEnvironmentObjectDeletion,
   updateEnvironment,
-} from "@silo/api/services";
-import { db } from "@silo/db/client";
+} from "@silo-storage/api/services";
+import { db } from "@silo-storage/db/client";
 
 import {
   authenticateRequest,

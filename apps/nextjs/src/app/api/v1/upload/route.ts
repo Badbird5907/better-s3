@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { generateSignedUploadUrl } from "@silo/shared/signing";
+import { generateSignedUploadUrl } from "@silo-storage/shared/signing";
 
 import { env } from "@/env";
 import {
@@ -25,7 +25,6 @@ const schema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
   callbackUrl: z.url().optional(),
   callbackMetadata: z.record(z.string(), z.unknown()).optional(),
-  awaitServerData: z.boolean().optional(),
   dev: z.boolean().optional(),
 
 });
@@ -73,7 +72,6 @@ export async function POST(request: Request) {
     metadata,
     callbackUrl,
     callbackMetadata,
-    awaitServerData,
     dev: isDev,
   } = result.data;
 
@@ -126,7 +124,6 @@ export async function POST(request: Request) {
       requestMetadata: metadata,
       callbackUrl,
       callbackMetadata,
-      awaitServerData,
     });
 
     if (isDev) {

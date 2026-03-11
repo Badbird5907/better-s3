@@ -5,23 +5,23 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@silo/ui/components/button";
+import { Button } from "@silo-storage/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@silo/ui/components/card";
-import { Input } from "@silo/ui/components/input";
-import { Label } from "@silo/ui/components/label";
+} from "@silo-storage/ui/components/card";
+import { Input } from "@silo-storage/ui/components/input";
+import { Label } from "@silo-storage/ui/components/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@silo/ui/components/select";
+} from "@silo-storage/ui/components/select";
 
 import { useTRPC } from "@/trpc/react";
 

@@ -2,7 +2,7 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { fileAccessTypes } from "@silo/db/schema";
+import { fileAccessTypes } from "@silo-storage/db/schema";
 
 import {
   createProject,

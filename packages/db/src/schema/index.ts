@@ -123,6 +123,7 @@ export const fileKeys = pgTable(
       .references(() => projects.id, { onDelete: "cascade" })
       .notNull(),
     metadata: jsonb("metadata").notNull(),
+    callbackMetadata: jsonb("callback_metadata"),
 
     // Claimed values from signed URL (for validation)
     claimedHash: text("claimed_hash"), // optional - if provided, worker validates against actual

@@ -11,7 +11,7 @@ import {
 import { createTRPCContext } from "@trpc/tanstack-react-query";
 import SuperJSON from "superjson";
 
-import type { AppRouter } from "@silo/api";
+import type { AppRouter } from "@silo-storage/api";
 
 import { env } from "@/env";
 import { createQueryClient } from "./query-client";

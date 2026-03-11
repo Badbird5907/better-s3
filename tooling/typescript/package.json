@@ -1,5 +1,5 @@
 {
-  "name": "@silo/tsconfig",
+  "name": "@silo-storage/tsconfig",
   "private": true,
   "files": [
     "*.json"

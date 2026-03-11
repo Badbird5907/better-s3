@@ -25,14 +25,14 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@silo/ui/components/card";
+} from "@silo-storage/ui/components/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from "@silo/ui/components/chart";
-import { DateRangePicker } from "@silo/ui/components/date-range-picker";
-import { Skeleton } from "@silo/ui/components/skeleton";
+} from "@silo-storage/ui/components/chart";
+import { DateRangePicker } from "@silo-storage/ui/components/date-range-picker";
+import { Skeleton } from "@silo-storage/ui/components/skeleton";
 
 import { useOrganization } from "@/hooks/use-organization";
 import { useTRPC } from "@/trpc/react";

@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react";
-import { DateTimePicker } from "@silo/ui/components/date-time-picker";
+import { DateTimePicker } from "@silo-storage/ui/components/date-time-picker";
 
 export default function TestPage() {
   const [date, setDate] = React.useState<Date | undefined>(undefined);

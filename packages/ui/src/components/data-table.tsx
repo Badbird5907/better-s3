@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { FileX } from "lucide-react";
 
-import { cn } from "@silo/ui/lib/utils";
+import { cn } from "@silo-storage/ui/lib/utils";
 
 import { Spinner } from "./spinner";
 import {

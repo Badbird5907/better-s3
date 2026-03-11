@@ -4,7 +4,7 @@ import { use } from "react";
 import { notFound, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
-import { Skeleton } from "@silo/ui/components/skeleton";
+import { Skeleton } from "@silo-storage/ui/components/skeleton";
 
 import {
   ApiKeysList,

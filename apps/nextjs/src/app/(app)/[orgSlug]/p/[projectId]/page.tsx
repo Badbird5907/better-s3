@@ -19,16 +19,16 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { Badge } from "@silo/ui/components/badge";
-import { Button } from "@silo/ui/components/button";
+import { Badge } from "@silo-storage/ui/components/badge";
+import { Button } from "@silo-storage/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@silo/ui/components/card";
-import { Skeleton } from "@silo/ui/components/skeleton";
+} from "@silo-storage/ui/components/card";
+import { Skeleton } from "@silo-storage/ui/components/skeleton";
 
 import { useOrganization } from "@/hooks/use-organization";
 import { useTRPC } from "@/trpc/react";

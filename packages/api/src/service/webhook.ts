@@ -1,8 +1,8 @@
 import { send } from "@vercel/queue";
-import type { Db } from "@silo/db/client";
-import { eq } from "@silo/db";
-import { projectEnvironments, webhookAttempts } from "@silo/db/schema";
-import type { UploadEventEnvelope } from "@silo/shared";
+import type { Db } from "@silo-storage/db/client";
+import { eq } from "@silo-storage/db";
+import { projectEnvironments, webhookAttempts } from "@silo-storage/db/schema";
+import type { UploadEventEnvelope } from "@silo-storage/shared";
 import { z } from "zod";
 
 const WEBHOOK_TOPIC = "upload-webhooks";

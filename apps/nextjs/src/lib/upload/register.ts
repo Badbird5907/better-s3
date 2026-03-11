@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { and, eq, sql } from "@silo/db";
-import { db } from "@silo/db/client";
-import { fileKeys, files } from "@silo/db/schema";
+import { and, eq, sql } from "@silo-storage/db";
+import { db } from "@silo-storage/db/client";
+import { fileKeys, files } from "@silo-storage/db/schema";
 
 const unknownRecordSchema = z.record(z.string(), z.unknown());
 
@@ -24,7 +24,6 @@ export const registerUploadBodySchema = z.object({
   metadata: unknownRecordSchema.optional(),
   callbackUrl: z.url().optional(),
   callbackMetadata: unknownRecordSchema.optional(),
-  awaitServerData: z.boolean().optional(),
   dev: z.boolean().optional(),
 });
 
@@ -40,9 +39,6 @@ function mergeMetadata(
   input: {
     requestMetadata?: Record<string, unknown>;
     fileMetadata?: Record<string, unknown>;
-    callbackUrl?: string;
-    callbackMetadata?: Record<string, unknown>;
-    awaitServerData?: boolean;
   },
 ): FileKeyMetadata {
   const existingObject =
@@ -56,17 +52,33 @@ function mergeMetadata(
     ...(input.fileMetadata ?? {}),
   };
 
+  return merged;
+}
+
+function mergeCallbackMetadata(
+  existing: unknown,
+  input: {
+    callbackUrl?: string;
+    callbackMetadata?: Record<string, unknown>;
+  },
+): FileKeyMetadata | null {
+  const existingObject =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? (existing as FileKeyMetadata)
+      : {};
+
+  const merged: FileKeyMetadata = {
+    ...existingObject,
+  };
+
   if (input.callbackUrl) {
     merged.callbackUrl = input.callbackUrl;
   }
   if (input.callbackMetadata) {
-    merged.callbackMetadata = input.callbackMetadata;
-  }
-  if (typeof input.awaitServerData === "boolean") {
-    merged.awaitServerData = input.awaitServerData;
+    Object.assign(merged, input.callbackMetadata);
   }
 
-  return merged;
+  return Object.keys(merged).length > 0 ? merged : null;
 }
 
 interface LockableExecutor {
@@ -74,6 +86,7 @@ interface LockableExecutor {
 }
 
 async function lockFileKey(executor: LockableExecutor, fileKeyId: string) {
+  // we lock to prevent creating duplicate file keys
   await executor.execute(
     sql`select pg_advisory_xact_lock(hashtext(${fileKeyId}))`,
   );
@@ -86,7 +99,6 @@ export async function registerFileKeyIntent(input: {
   requestMetadata?: Record<string, unknown>;
   callbackUrl?: string;
   callbackMetadata?: Record<string, unknown>;
-  awaitServerData?: boolean;
 }) {
   return db.transaction(async (tx) => {
     await lockFileKey(tx, input.fileKey.fileKeyId);
@@ -108,10 +120,14 @@ export async function registerFileKeyIntent(input: {
     const mergedMetadata = mergeMetadata(existing?.metadata, {
       requestMetadata: input.requestMetadata,
       fileMetadata: input.fileKey.metadata,
-      callbackUrl: input.callbackUrl,
-      callbackMetadata: input.callbackMetadata,
-      awaitServerData: input.awaitServerData,
     });
+    const mergedCallbackMetadata = mergeCallbackMetadata(
+      existing?.callbackMetadata,
+      {
+        callbackUrl: input.callbackUrl,
+        callbackMetadata: input.callbackMetadata,
+      },
+    );
 
     if (existing) {
       if (
@@ -136,6 +152,7 @@ export async function registerFileKeyIntent(input: {
           claimedMimeType: input.fileKey.mimeType ?? existing.claimedMimeType,
           claimedHash: input.fileKey.hash ?? existing.claimedHash,
           metadata: mergedMetadata,
+          callbackMetadata: mergedCallbackMetadata,
         })
         .where(eq(fileKeys.id, existing.id))
         .returning();
@@ -158,6 +175,7 @@ export async function registerFileKeyIntent(input: {
         fileId: null,
         isPublic: input.fileKey.isPublic ?? false,
         metadata: mergedMetadata,
+        callbackMetadata: mergedCallbackMetadata,
         claimedSize: input.fileKey.size,
         claimedMimeType: input.fileKey.mimeType ?? null,
         claimedHash: input.fileKey.hash ?? null,

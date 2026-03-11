@@ -1,6 +1,6 @@
 import { defineConfig } from "eslint/config";
 
-import { baseConfig, restrictEnvAccess } from "@silo/eslint-config/base";
+import { baseConfig, restrictEnvAccess } from "@silo-storage/eslint-config/base";
 
 export default defineConfig(
   {

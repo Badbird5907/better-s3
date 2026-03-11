@@ -7,7 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Building2, Check, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@silo/ui/components/button";
+import { Button } from "@silo-storage/ui/components/button";
 import {
   Card,
   CardContent,
@@ -15,7 +15,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@silo/ui/components/card";
+} from "@silo-storage/ui/components/card";
 
 import { authClient } from "@/auth/client";
 

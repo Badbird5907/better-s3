@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@silo/ui/components/button";
+import { Button } from "@silo-storage/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -13,16 +13,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@silo/ui/components/dialog";
-import { Input } from "@silo/ui/components/input";
-import { Label } from "@silo/ui/components/label";
+} from "@silo-storage/ui/components/dialog";
+import { Input } from "@silo-storage/ui/components/input";
+import { Label } from "@silo-storage/ui/components/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@silo/ui/components/select";
+} from "@silo-storage/ui/components/select";
 
 import { authClient } from "@/auth/client";
 import { useTRPC } from "@/trpc/react";

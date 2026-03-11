@@ -5,9 +5,9 @@ import { useMutation } from "@tanstack/react-query";
 import { Loader2, WebhookIcon } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@silo/ui/components/button";
-import { Checkbox } from "@silo/ui/components/checkbox";
-import { Switch } from "@silo/ui/components/switch";
+import { Button } from "@silo-storage/ui/components/button";
+import { Checkbox } from "@silo-storage/ui/components/checkbox";
+import { Switch } from "@silo-storage/ui/components/switch";
 import {
   Dialog,
   DialogContent,
@@ -15,9 +15,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@silo/ui/components/dialog";
-import { Input } from "@silo/ui/components/input";
-import { Label } from "@silo/ui/components/label";
+} from "@silo-storage/ui/components/dialog";
+import { Input } from "@silo-storage/ui/components/input";
+import { Label } from "@silo-storage/ui/components/label";
 
 import { useTRPC } from "@/trpc/react";
 

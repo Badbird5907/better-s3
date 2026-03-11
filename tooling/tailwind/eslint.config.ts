@@ -1,5 +1,5 @@
 import { defineConfig } from "eslint/config";
 
-import { baseConfig } from "@silo/eslint-config/base";
+import { baseConfig } from "@silo-storage/eslint-config/base";
 
 export default defineConfig(baseConfig);

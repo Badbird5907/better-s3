@@ -1,2 +1,2 @@
 export * from "./client";
-// export * from "@silo/shared/signing";
+export * from "./signing";

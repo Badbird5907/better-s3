@@ -1,5 +1,5 @@
 {
-  "name": "@silo/shared",
+  "name": "@silo-storage/shared",
   "private": true,
   "type": "module",
   "exports": {
@@ -19,18 +19,18 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "devDependencies": {
-    "@silo/eslint-config": "workspace:*",
-    "@silo/prettier-config": "workspace:*",
-    "@silo/tsconfig": "workspace:*",
+    "@silo-storage/eslint-config": "workspace:*",
+    "@silo-storage/prettier-config": "workspace:*",
+    "@silo-storage/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@silo/prettier-config",
+  "prettier": "@silo-storage/prettier-config",
   "dependencies": {
-    "@silo/types": "workspace:*",
-    "@silo/validators": "workspace:*",
+    "@silo-storage/types": "workspace:*",
+    "@silo-storage/validators": "workspace:*",
     "@t3-oss/env-core": "^0.13.10"
   }
 }

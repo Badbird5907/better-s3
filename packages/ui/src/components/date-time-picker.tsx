@@ -4,15 +4,15 @@ import * as React from "react";
 import { format } from "date-fns";
 import { CalendarIcon, Clock } from "lucide-react";
 
-import { Button } from "@silo/ui/components/button";
-import { Calendar } from "@silo/ui/components/calendar";
-import { Input } from "@silo/ui/components/input";
+import { Button } from "@silo-storage/ui/components/button";
+import { Calendar } from "@silo-storage/ui/components/calendar";
+import { Input } from "@silo-storage/ui/components/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@silo/ui/components/popover";
-import { cn } from "@silo/ui/lib/utils";
+} from "@silo-storage/ui/components/popover";
+import { cn } from "@silo-storage/ui/lib/utils";
 
 interface DateTimePickerProps {
   value?: Date;

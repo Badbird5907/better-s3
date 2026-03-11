@@ -1,6 +1,6 @@
 import type * as React from "react";
 
-import { cn } from "@silo/ui/lib/utils";
+import { cn } from "@silo-storage/ui/lib/utils";
 
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (

@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { lookupFileKey } from "@silo/api/services";
-import { eq } from "@silo/db";
-import { db } from "@silo/db/client";
-import { files } from "@silo/db/schema";
+import { lookupFileKey } from "@silo-storage/api/services";
+import { eq } from "@silo-storage/db";
+import { db } from "@silo-storage/db/client";
+import { files } from "@silo-storage/db/schema";
 
 import { env } from "@/env";
 import {

@@ -11,11 +11,11 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z, ZodError } from "zod/v4";
 
-import type { Auth, Session } from "@silo/auth";
-import { and, eq } from "@silo/db";
-import { db } from "@silo/db/client";
-import { members, organizations } from "@silo/db/schema";
-import { redis } from "@silo/redis";
+import type { Auth, Session } from "@silo-storage/auth";
+import { and, eq } from "@silo-storage/db";
+import { db } from "@silo-storage/db/client";
+import { members, organizations } from "@silo-storage/db/schema";
+import { redis } from "@silo-storage/redis";
 
 /**
  * 1. CONTEXT

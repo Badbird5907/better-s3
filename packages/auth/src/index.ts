@@ -3,7 +3,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { oAuthProxy, organization } from "better-auth/plugins";
 
-import { db } from "@silo/db/client";
+import { db } from "@silo-storage/db/client";
 
 import { authEnv } from "../env";
 

@@ -1,6 +1,6 @@
-import type { Db } from "@silo/db/client";
-import { eq } from "@silo/db";
-import { projectEnvironments, projects } from "@silo/db/schema";
+import type { Db } from "@silo-storage/db/client";
+import { eq } from "@silo-storage/db";
+import { projectEnvironments, projects } from "@silo-storage/db/schema";
 
 const DEFAULT_ENVIRONMENTS = [
   { name: "Production", slug: "production", type: "production" as const },

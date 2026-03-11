@@ -46,7 +46,6 @@ export async function POST(request: Request) {
     metadata,
     callbackUrl,
     callbackMetadata,
-    awaitServerData,
     dev,
   } = parsed.data;
 
@@ -66,7 +65,6 @@ export async function POST(request: Request) {
         requestMetadata: metadata,
         callbackUrl,
         callbackMetadata,
-        awaitServerData,
       });
       registered.push({
         fileKeyId: row.id,
