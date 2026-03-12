@@ -1,0 +1,138 @@
+import { z } from "zod";
+
+import type { Bindings } from "../types/bindings";
+import { deleteObject } from "./r2/upload";
+
+const expiryListResponseSchema = z.object({
+  items: z.array(
+    z.object({
+      fileKeyId: z.string(),
+      fileId: z.string(),
+      projectId: z.string(),
+      environmentId: z.string(),
+      accessKey: z.string(),
+      expiresAt: z.string().datetime().nullable().optional(),
+      adapterKey: z.string(),
+    }),
+  ),
+});
+
+const expiryFinalizeResponseSchema = z.object({
+  deletedCount: z.number().int().nonnegative(),
+  deletedFileIds: z.array(z.string()),
+});
+
+function resolvePositiveInt(
+  value: string | undefined,
+  fallback: number,
+): number {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+async function fetchExpiredBatch(env: Bindings, limit: number) {
+  const response = await fetch(
+    `${env.NEXTJS_CALLBACK_URL}/api/internal/expiry/list`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.CALLBACK_SECRET}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ limit }),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `Failed to list expired files (${response.status}): ${text || response.statusText}`,
+    );
+  }
+
+  const json: unknown = await response.json();
+  const parsed = expiryListResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    throw new Error(`Invalid expiry list response: ${parsed.error.message}`);
+  }
+
+  return parsed.data.items;
+}
+
+async function finalizeExpiredBatch(env: Bindings, fileIds: string[]) {
+  const response = await fetch(
+    `${env.NEXTJS_CALLBACK_URL}/api/internal/expiry/finalize`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.CALLBACK_SECRET}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ fileIds }),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `Failed to finalize expired files (${response.status}): ${text || response.statusText}`,
+    );
+  }
+
+  const json: unknown = await response.json();
+  const parsed = expiryFinalizeResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    throw new Error(
+      `Invalid expiry finalize response: ${parsed.error.message}`,
+    );
+  }
+
+  return parsed.data;
+}
+
+export async function runExpiryCleanup(env: Bindings) {
+  const batchSize = resolvePositiveInt(env.EXPIRY_CLEANUP_BATCH_SIZE, 100);
+  const maxBatches = resolvePositiveInt(env.EXPIRY_CLEANUP_MAX_BATCHES, 10);
+
+  let batchesProcessed = 0;
+  let totalR2Deleted = 0;
+  let totalDbDeleted = 0;
+
+  while (batchesProcessed < maxBatches) {
+    const expiredItems = await fetchExpiredBatch(env, batchSize);
+    if (expiredItems.length === 0) {
+      break;
+    }
+
+    const fileIdsToFinalize = new Set<string>();
+    for (const item of expiredItems) {
+      try {
+        await deleteObject(item.adapterKey, env);
+        fileIdsToFinalize.add(item.fileId);
+        totalR2Deleted += 1;
+      } catch (error) {
+        console.error("Failed to delete expired object from R2", {
+          fileKeyId: item.fileKeyId,
+          fileId: item.fileId,
+          adapterKey: item.adapterKey,
+          error,
+        });
+      }
+    }
+
+    if (fileIdsToFinalize.size > 0) {
+      const finalized = await finalizeExpiredBatch(env, [...fileIdsToFinalize]);
+      totalDbDeleted += finalized.deletedCount;
+    }
+
+    batchesProcessed += 1;
+  }
+
+  console.info("Expiry cleanup run complete", {
+    batchesProcessed,
+    totalR2Deleted,
+    totalDbDeleted,
+  });
+}

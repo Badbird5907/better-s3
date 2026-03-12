@@ -132,6 +132,7 @@ export const fileKeys = pgTable(
 
     // Upload state tracking
     status: fileKeyStatus("status").notNull().default("pending"),
+    expiresAt: timestamp("expires_at"),
     uploadCompletedAt: timestamp("upload_completed_at"),
     uploadFailedAt: timestamp("upload_failed_at"),
 
@@ -146,6 +147,7 @@ export const fileKeys = pgTable(
       table.projectId,
       table.accessKey,
     ),
+    index("file_keys_status_expires_at_idx").on(table.status, table.expiresAt),
   ],
 );
 

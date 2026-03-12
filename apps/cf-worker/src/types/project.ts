@@ -12,6 +12,7 @@ export interface FileKeyInfo {
   projectId: string;
   environmentId: string;
   isPublic: boolean;
+  expiresAt?: string | null;
   file: FileInfo;
 }
 
@@ -38,6 +39,7 @@ export const fileKeyInfoSchema = z.object({
   projectId: z.string(),
   environmentId: z.string(),
   isPublic: z.boolean(),
+  expiresAt: z.string().datetime().nullable().optional(),
   file: fileInfoSchema,
 });
 

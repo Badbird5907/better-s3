@@ -1,5 +1,6 @@
-import { createSiloCore, createSiloCoreFromToken } from "./upload";
-import type { UploadCore, UploadCoreConfig } from "./upload";
+import type { UploadCore } from "./upload/core";
+import type { UploadCoreConfig } from "./upload/types";
+import { createSiloCore, createSiloCoreFromToken } from "./upload/core";
 
 export interface SiloClientConfig {
   apiBaseUrl: string;
@@ -7,7 +8,10 @@ export interface SiloClientConfig {
   apiKey?: string;
 }
 
-export type SiloClientUploadConfig = Omit<UploadCoreConfig, "apiBaseUrl" | "apiKey"> & {
+export type SiloClientUploadConfig = Omit<
+  UploadCoreConfig,
+  "apiBaseUrl" | "apiKey"
+> & {
   apiBaseUrl?: string;
   apiKey?: string;
 };

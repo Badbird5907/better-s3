@@ -1,168 +1,31 @@
-import { generateSignedUploadUrlWithSecret } from "./signing";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-const siloTokenSchema = z
-  .object({
-    v: z.number().int().positive(),
-    ak: z.string().min(1),
-    eid: z.string().min(1),
-    is: z.string().min(1),
-    ss: z.string().min(1),
-  })
-  .strict();
-
-export interface ParsedSiloToken {
-  version: number;
-  apiKey: string;
-  environmentId: string;
-  ingestServer: string;
-  signingSecret: string;
-}
-
-export interface CreateSiloCoreFromTokenInput {
-  url: string;
-  token: string;
-  callbackUrl?: string;
-  fetch?: typeof fetch;
-}
-
-function decodeBase64UrlUtf8(input: string): string {
-  const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
-
-  if (typeof atob === "function") {
-    return atob(padded);
-  }
-
-  const globalBuffer = (globalThis as { Buffer?: { from: (value: string, encoding: string) => { toString: (encoding: string) => string } } }).Buffer;
-  if (globalBuffer) {
-    return globalBuffer.from(padded, "base64").toString("utf8");
-  }
-
-  throw new Error("Unable to decode SILO_TOKEN in this runtime.");
-}
-
-export function encodeSiloToken(payload: {
-  v: number;
-  ak: string;
-  eid: string;
-  is: string;
-  ss: string;
-}): string {
-  const json = JSON.stringify(payload);
-  if (typeof btoa === "function") {
-    return btoa(json).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-  }
-  const globalBuffer = (globalThis as { Buffer?: { from: (value: string, encoding: string) => { toString: (encoding: string) => string } } }).Buffer;
-  if (globalBuffer) {
-    return globalBuffer.from(json, "utf8")
-      .toString("base64")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/g, "");
-  }
-  throw new Error("Unable to encode SILO_TOKEN in this runtime.");
-}
-
-export function parseSiloToken(token: string): ParsedSiloToken {
-  const decoded = decodeBase64UrlUtf8(token);
-
-  let parsedJson: unknown;
-  try {
-    parsedJson = JSON.parse(decoded);
-  } catch {
-    throw new Error("Invalid SILO_TOKEN: expected base64url-encoded JSON.");
-  }
-
-  const parsed = siloTokenSchema.safeParse(parsedJson);
-  if (!parsed.success) {
-    throw new Error(`Invalid SILO_TOKEN: ${parsed.error.message}`);
-  }
-
-  return {
-    version: parsed.data.v,
-    apiKey: parsed.data.ak,
-    environmentId: parsed.data.eid,
-    ingestServer: parsed.data.is,
-    signingSecret: parsed.data.ss,
-  };
-}
-
-export interface UploadCoreConfig {
-  apiBaseUrl: string;
-  apiKey: string;
-  environmentId: string;
-  ingestServer: string;
-  signingSecret: string;
-  keyId?: string;
-  callbackUrl?: string;
-  fetch?: typeof fetch;
-}
-
-export interface UploadFileInput {
-  fileName: string;
-  size: number;
-  accessKey?: string;
-  fileKeyId?: string;
-  hash?: string;
-  mimeType?: string;
-  isPublic?: boolean;
-  metadata?: Record<string, unknown>;
-}
-
-export interface RegisterUploadBatchInput {
-  files: UploadFileInput[];
-  requestMetadata?: Record<string, unknown>;
-  callbackMetadata?: Record<string, unknown>;
-  callbackUrl?: string;
-  dev?: boolean;
-  expiresIn?: number;
-  protocol?: "http" | "https";
-}
-
-export interface PrepareUploadInput extends Omit<RegisterUploadBatchInput, "files"> {
-  file: UploadFileInput;
-}
-
-export interface PreparedUploadFile {
-  fileKeyId: string;
-  accessKey: string;
-  uploadUrl: string;
-  fileName: string;
-  size: number;
-  hash?: string;
-  mimeType?: string;
-  isPublic?: boolean;
-  metadata?: Record<string, unknown>;
-  expiresAt: string;
-}
-
-export interface RegisteredUploadFile {
-  fileKeyId: string;
-  accessKey: string;
-  status: string;
-}
-
-export interface ProductionUploadBatchResult {
-  mode: "production";
-  files: (PreparedUploadFile & { registration: RegisteredUploadFile | null })[];
-  registerResponse: {
-    success: true;
-    fileKeys: RegisteredUploadFile[];
-  };
-}
-
-export interface DevelopmentUploadBatchResult {
-  mode: "development";
-  files: PreparedUploadFile[];
-  stream: ReadableStream<Uint8Array>;
-  response: Response;
-}
-
-export type RegisterUploadBatchResult =
-  | ProductionUploadBatchResult
-  | DevelopmentUploadBatchResult;
+import type { UpdateFileExpiryInput, UpdateFileExpiryResult } from "./expiry";
+import type { CreateSiloCoreFromTokenInput } from "./token";
+import type {
+  GetFileInput,
+  ListFilesInput,
+  ListFilesResult,
+  PreparedUploadFile,
+  PrepareUploadInput,
+  RegisterUploadBatchInput,
+  RegisterUploadBatchResult,
+  SiloFileDetail,
+  UploadCoreConfig,
+} from "./types";
+import { generateSignedUploadUrlWithSecret } from "../signing";
+import {
+  applyFileExpiryToRegisterBody,
+  createUpdateFileExpiryRequestBody,
+  updateFileExpiryResultSchema,
+} from "./expiry";
+import {
+  fileDetailSchema,
+  listFilesResultSchema,
+  parseRegisterResponseBody,
+} from "./schemas";
+import { parseSiloToken } from "./token";
 
 function stripTrailingSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
@@ -177,35 +40,14 @@ function isAbsoluteUrl(value: string): boolean {
   }
 }
 
-const registeredUploadFileSchema = z.object({
-  fileKeyId: z.string(),
-  accessKey: z.string(),
-  status: z.string(),
-});
-
-const registerResponseBodySchema = z.object({
-  success: z.literal(true),
-  fileKeys: z.array(registeredUploadFileSchema),
-  projectSlug: z.string().min(1),
-});
-
-function parseRegisterResponseBody(value: unknown): {
-  success: true;
-  fileKeys: RegisteredUploadFile[];
-  projectSlug: string;
-} {
-  const parsed = registerResponseBodySchema.safeParse(value);
-  if (!parsed.success) {
-    throw new Error(`Unexpected register response shape: ${parsed.error.message}`);
-  }
-  return parsed.data;
-}
-
 function createDefaultAccessKey(): string {
   return crypto.randomUUID().replace(/-/g, "");
 }
 
-function resolveProtocol(apiBaseUrl: string, protocol?: "http" | "https"): "http" | "https" {
+function resolveProtocol(
+  apiBaseUrl: string,
+  protocol?: "http" | "https",
+): "http" | "https" {
   if (protocol) return protocol;
   return apiBaseUrl.startsWith("http://") ? "http" : "https";
 }
@@ -224,6 +66,50 @@ export function createSiloCore(config: UploadCoreConfig) {
   const fetchImpl = config.fetch ?? fetch;
   const resolvedKeyId = config.keyId ?? config.apiKey.slice(0, 11);
 
+  async function parseApiResponse<T>(
+    response: Response,
+    schema: z.ZodType<T>,
+  ): Promise<T> {
+    const json: unknown = await response.json();
+    if (!json || typeof json !== "object" || !("data" in json)) {
+      throw new Error("Unexpected API response shape: missing data envelope");
+    }
+
+    try {
+      return schema.parse((json as { data: unknown }).data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Unexpected API response shape: ${message}`);
+    }
+  }
+
+  async function updateFileExpiry(
+    input: UpdateFileExpiryInput,
+  ): Promise<UpdateFileExpiryResult> {
+    const body = createUpdateFileExpiryRequestBody(input, config.environmentId);
+
+    const response = await fetchImpl(
+      `${baseUrl}/api/v1/files/${encodeURIComponent(input.fileKeyId)}/expiry`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        `Update file expiry request failed (${response.status}): ${text || response.statusText}`,
+      );
+    }
+
+    return parseApiResponse(response, updateFileExpiryResultSchema);
+  }
+
   async function registerUploadBatch(
     input: RegisterUploadBatchInput,
   ): Promise<RegisterUploadBatchResult> {
@@ -239,11 +125,9 @@ export function createSiloCore(config: UploadCoreConfig) {
     const protocol = resolveProtocol(baseUrl, input.protocol);
     const expiresIn = input.expiresIn ?? 3600;
 
-    const preparedFilesWithoutUrl: (
-      Omit<PreparedUploadFile, "uploadUrl"> & {
-        uploadUrl?: string;
-      }
-    )[] = [];
+    const preparedFilesWithoutUrl: (Omit<PreparedUploadFile, "uploadUrl"> & {
+      uploadUrl?: string;
+    })[] = [];
     for (const file of input.files) {
       const fileKeyId = file.fileKeyId ?? nanoid(16);
       const accessKey = file.accessKey ?? createDefaultAccessKey();
@@ -276,6 +160,8 @@ export function createSiloCore(config: UploadCoreConfig) {
       dev: input.dev === true,
     };
 
+    applyFileExpiryToRegisterBody(registerBody, input.fileExpiry);
+
     if (!input.dev) {
       const callbackUrlInput = input.callbackUrl ?? config.callbackUrl;
       if (!callbackUrlInput) {
@@ -306,7 +192,9 @@ export function createSiloCore(config: UploadCoreConfig) {
 
     const contentType = response.headers.get("content-type") ?? "";
 
-    async function signPreparedFiles(projectSlug: string): Promise<PreparedUploadFile[]> {
+    async function signPreparedFiles(
+      projectSlug: string,
+    ): Promise<PreparedUploadFile[]> {
       const preparedFiles: PreparedUploadFile[] = [];
       for (const file of preparedFilesWithoutUrl) {
         const uploadUrl = await generateSignedUploadUrlWithSecret(
@@ -337,7 +225,9 @@ export function createSiloCore(config: UploadCoreConfig) {
 
     if (contentType.includes("text/event-stream")) {
       if (!response.body) {
-        throw new Error("Register returned an SSE response without a readable body");
+        throw new Error(
+          "Register returned an SSE response without a readable body",
+        );
       }
       const projectSlug = response.headers.get("x-silo-project-slug");
       if (!projectSlug) {
@@ -356,7 +246,9 @@ export function createSiloCore(config: UploadCoreConfig) {
 
     const parsedJson = parseRegisterResponseBody(await response.json());
     const preparedFiles = await signPreparedFiles(parsedJson.projectSlug);
-    const byFileKeyId = new Map(parsedJson.fileKeys.map((item) => [item.fileKeyId, item]));
+    const byFileKeyId = new Map(
+      parsedJson.fileKeys.map((item) => [item.fileKeyId, item]),
+    );
     return {
       mode: "production",
       registerResponse: parsedJson,
@@ -394,9 +286,71 @@ export function createSiloCore(config: UploadCoreConfig) {
     };
   }
 
+  async function listFiles(input: ListFilesInput): Promise<ListFilesResult> {
+    const query = new URLSearchParams({
+      projectId: input.projectId,
+      environmentId: input.environmentId ?? config.environmentId,
+    });
+
+    if (input.page !== undefined) query.set("page", input.page.toString());
+    if (input.pageSize !== undefined) {
+      query.set("pageSize", input.pageSize.toString());
+    }
+    if (input.search) query.set("search", input.search);
+    if (input.status) query.set("status", input.status);
+
+    const response = await fetchImpl(
+      `${baseUrl}/api/v1/files?${query.toString()}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        `List files request failed (${response.status}): ${text || response.statusText}`,
+      );
+    }
+
+    return parseApiResponse(response, listFilesResultSchema);
+  }
+
+  async function getFile(input: GetFileInput): Promise<SiloFileDetail> {
+    const query = new URLSearchParams({
+      projectId: input.projectId,
+      environmentId: input.environmentId ?? config.environmentId,
+    });
+
+    const response = await fetchImpl(
+      `${baseUrl}/api/v1/files/${encodeURIComponent(input.fileKeyId)}?${query.toString()}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        `Get file request failed (${response.status}): ${text || response.statusText}`,
+      );
+    }
+
+    return parseApiResponse(response, fileDetailSchema);
+  }
+
   return {
     registerUploadBatch,
     prepareUpload,
+    listFiles,
+    getFile,
+    updateFileExpiry,
   };
 }
 

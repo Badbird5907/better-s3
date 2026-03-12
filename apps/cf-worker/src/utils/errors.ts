@@ -102,6 +102,11 @@ export const Errors = {
       identifier,
     }),
 
+  fileExpired: (identifier: string) =>
+    new TusError("FILE_EXPIRED", HTTP_STATUS.GONE, "File has expired", {
+      identifier,
+    }),
+
   signatureInvalid: () =>
     new TusError(
       "SIGNATURE_INVALID",

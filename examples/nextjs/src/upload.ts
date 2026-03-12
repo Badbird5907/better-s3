@@ -23,6 +23,7 @@ export const fileRouter = {
     },
   }, {
     isPublic: true,
+    fileExpiry: { ttl: "2 minutes" }
   })
     .middleware(async ({ context }) => {
       if (!context?.userId) {

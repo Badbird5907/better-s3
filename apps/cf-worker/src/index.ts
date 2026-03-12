@@ -23,6 +23,7 @@ import {
   handleTusOptions,
   handleTusPatch,
 } from "./routes/tus-handlers";
+import { runExpiryCleanup } from "./services/expiry-cleanup";
 import { deletePrefixChunk } from "./services/r2/delete-prefix";
 import { createErrorResponse } from "./utils/errors";
 
@@ -92,6 +93,12 @@ app.notFound((c) => {
 
 export default {
   fetch: app.fetch,
+  async scheduled(
+    _controller: ScheduledController,
+    env: Bindings,
+  ): Promise<void> {
+    await runExpiryCleanup(env);
+  },
   async queue(
     batch: MessageBatch<DeletePrefixQueueMessage>,
     env: Bindings,

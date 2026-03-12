@@ -76,7 +76,8 @@ export async function handleDownload(
   const signature = c.req.query("sig");
   const expiresAt = c.req.query("expiresAt");
 
-  if (expiresAt) { // check key expiry early
+  if (expiresAt) {
+    // check key expiry early
     const now = Math.floor(Date.now() / 1000);
     if (parseInt(expiresAt, 10) < now) {
       throw Errors.unauthorized("Signed URL has expired");
@@ -87,6 +88,16 @@ export async function handleDownload(
   const rangeHeader = c.req.header("Range");
 
   const fileKey = await getCachedFileKey(accessKey, projectId, c.env);
+
+  if (fileKey.expiresAt) {
+    const expiryDate = new Date(fileKey.expiresAt as string);
+    if (
+      !Number.isNaN(expiryDate.getTime()) &&
+      expiryDate.getTime() <= Date.now()
+    ) {
+      throw Errors.fileExpired(accessKey);
+    }
+  }
 
   if (!fileKey.isPublic) {
     if (!signature || !expiresAt) {
@@ -164,10 +175,7 @@ export async function handleDownload(
   );
 
   if (isPartialContent) {
-    headers.set(
-      "Content-Range",
-      `bytes ${rangeStart}-${rangeEnd}/${fileSize}`,
-    );
+    headers.set("Content-Range", `bytes ${rangeStart}-${rangeEnd}/${fileSize}`);
     headers.set("Content-Length", (rangeEnd - rangeStart + 1).toString());
 
     return new Response(object.body, {

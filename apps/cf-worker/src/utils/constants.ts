@@ -53,6 +53,7 @@ export const ERROR_CODES = {
   UPLOAD_NOT_FOUND: "upload_not_found",
   UPLOAD_EXPIRED: "upload_expired",
   FILE_NOT_FOUND: "file_not_found",
+  FILE_EXPIRED: "file_expired",
   SIGNATURE_INVALID: "signature_invalid",
   UNAUTHORIZED: "unauthorized",
   PROJECT_NOT_FOUND: "project_not_found",

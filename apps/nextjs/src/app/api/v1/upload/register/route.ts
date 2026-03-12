@@ -7,8 +7,8 @@ import {
 } from "@/lib/api-key-middleware";
 import { createDevUploadEventStream } from "@/lib/upload/dev-sse";
 import {
-  registerUploadBodySchema,
   registerFileKeyIntent,
+  registerUploadBodySchema,
 } from "@/lib/upload/register";
 
 export async function POST(request: Request) {
@@ -46,7 +46,17 @@ export async function POST(request: Request) {
     callbackUrl,
     callbackMetadata,
     dev,
+    fileExpiry,
   } = parsed.data;
+
+  const resolvedExpiresAt =
+    fileExpiry && "ttlSeconds" in fileExpiry
+      ? new Date(Date.now() + fileExpiry.ttlSeconds * 1000)
+      : fileExpiry && "expiresAt" in fileExpiry
+        ? fileExpiry.expiresAt
+          ? new Date(fileExpiry.expiresAt)
+          : null
+        : undefined;
 
   const projectId = authResult.projectId;
   if (!projectId) {
@@ -69,6 +79,7 @@ export async function POST(request: Request) {
         projectId,
         environmentId,
         fileKey,
+        expiresAt: resolvedExpiresAt,
         requestMetadata: metadata,
         callbackUrl,
         callbackMetadata,

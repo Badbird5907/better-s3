@@ -3,7 +3,7 @@ import { createSiloCoreFromToken, parseSiloToken } from "@silo-storage/sdk-core"
 import { createRouteHandler } from "@silo-storage/sdk-next";
 import type { FileRouter } from "@silo-storage/sdk-server";
 
-import { fileRouter } from "./core";
+import { fileRouter } from "@/upload";
 
 function requireEnv(name: keyof NodeJS.ProcessEnv) {
   const value = process.env[name];

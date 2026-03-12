@@ -1,0 +1,157 @@
+import type { FileExpiryInput } from "./expiry";
+
+export interface UploadCoreConfig {
+  apiBaseUrl: string;
+  apiKey: string;
+  environmentId: string;
+  ingestServer: string;
+  signingSecret: string;
+  keyId?: string;
+  callbackUrl?: string;
+  fetch?: typeof fetch;
+}
+
+export interface UploadFileInput {
+  fileName: string;
+  size: number;
+  accessKey?: string;
+  fileKeyId?: string;
+  hash?: string;
+  mimeType?: string;
+  isPublic?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export interface RegisterUploadBatchInput {
+  files: UploadFileInput[];
+  requestMetadata?: Record<string, unknown>;
+  callbackMetadata?: Record<string, unknown>;
+  callbackUrl?: string;
+  dev?: boolean;
+  expiresIn?: number;
+  protocol?: "http" | "https";
+  fileExpiry?: FileExpiryInput;
+}
+
+export interface PrepareUploadInput extends Omit<
+  RegisterUploadBatchInput,
+  "files"
+> {
+  file: UploadFileInput;
+}
+
+export interface ListFilesInput {
+  projectId: string;
+  environmentId?: string;
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: "all" | "pending" | "completed" | "failed";
+}
+
+export interface SiloFileSummary {
+  id: string;
+  fileName: string;
+  accessKey: string;
+  projectId: string;
+  environmentId: string;
+  fileId: string | null;
+  status: "pending" | "completed" | "failed";
+  isPublic: boolean;
+  metadata: Record<string, unknown> | null;
+  expiresAt: string | null;
+  uploadCompletedAt: string | null;
+  uploadFailedAt: string | null;
+  createdAt: string;
+  hash: string | null;
+  mimeType: string | null;
+  size: number | null;
+  adapterKey: string | null;
+}
+
+export interface ListFilesResult {
+  files: SiloFileSummary[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+export interface GetFileInput {
+  projectId: string;
+  fileKeyId: string;
+  environmentId?: string;
+}
+
+export interface SiloFileDetail {
+  id: string;
+  fileName: string;
+  accessKey: string;
+  projectId: string;
+  environmentId: string;
+  fileId: string | null;
+  status: "pending" | "completed" | "failed";
+  isPublic: boolean;
+  metadata: Record<string, unknown> | null;
+  expiresAt: string | null;
+  uploadCompletedAt: string | null;
+  uploadFailedAt: string | null;
+  createdAt: string;
+  callbackMetadata: Record<string, unknown> | null;
+  claimedHash: string | null;
+  claimedMimeType: string | null;
+  claimedSize: number | null;
+  updatedAt: string;
+  file: {
+    id: string;
+    hash: string | null;
+    mimeType: string;
+    size: number;
+    adapterKey: string;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
+}
+
+export interface PreparedUploadFile {
+  fileKeyId: string;
+  accessKey: string;
+  uploadUrl: string;
+  fileName: string;
+  size: number;
+  hash?: string;
+  mimeType?: string;
+  isPublic?: boolean;
+  metadata?: Record<string, unknown>;
+  expiresAt: string;
+}
+
+export interface RegisteredUploadFile {
+  fileKeyId: string;
+  accessKey: string;
+  status: string;
+}
+
+export interface ProductionUploadBatchResult {
+  mode: "production";
+  files: (PreparedUploadFile & { registration: RegisteredUploadFile | null })[];
+  registerResponse: {
+    success: true;
+    fileKeys: RegisteredUploadFile[];
+  };
+}
+
+export interface DevelopmentUploadBatchResult {
+  mode: "development";
+  files: PreparedUploadFile[];
+  stream: ReadableStream<Uint8Array>;
+  response: Response;
+}
+
+export type RegisterUploadBatchResult =
+  | ProductionUploadBatchResult
+  | DevelopmentUploadBatchResult;

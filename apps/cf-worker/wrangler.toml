@@ -39,6 +39,11 @@ TUS_MAX_SIZE = "106300440576"  # 99GB in bytes
 # TUS_MAX_PATCH_SIZE = "536870912"  # 512MB per PATCH in bytes
 TUS_MAX_PATCH_SIZE = "106300440576"  # 99GB per PATCH in bytes
 TUS_EXPIRATION_HOURS = "24"
+EXPIRY_CLEANUP_BATCH_SIZE = "100"
+EXPIRY_CLEANUP_MAX_BATCHES = "10"
+
+[triggers]
+crons = ["0 * * * *"]
 
 # Development environment
 [env.development]

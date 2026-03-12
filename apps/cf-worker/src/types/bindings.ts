@@ -13,8 +13,10 @@ export interface Bindings {
   CALLBACK_SECRET: string;
   SIGNING_SECRET: string;
   TUS_MAX_SIZE: string;
-  TUS_MAX_PATCH_SIZE?: string;
+  TUS_MAX_PATCH_SIZE: string;
   TUS_EXPIRATION_HOURS: string;
+  EXPIRY_CLEANUP_BATCH_SIZE: string;
+  EXPIRY_CLEANUP_MAX_BATCHES: string;
 }
 
 export interface Variables {

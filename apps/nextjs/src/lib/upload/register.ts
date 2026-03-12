@@ -24,6 +24,16 @@ export const registerUploadBodySchema = z.object({
   callbackUrl: z.url().optional(),
   callbackMetadata: unknownRecordSchema.optional(),
   dev: z.boolean().optional(),
+  fileExpiry: z
+    .union([
+      z.object({
+        ttlSeconds: z.number().int().positive(),
+      }),
+      z.object({
+        expiresAt: z.string().datetime().nullable(),
+      }),
+    ])
+    .optional(),
 });
 
 export type RegisterUploadBody = z.infer<typeof registerUploadBodySchema>;
@@ -104,6 +114,7 @@ export async function registerFileKeyIntent(input: {
   projectId: string;
   environmentId: string;
   fileKey: RegisterUploadFileKey;
+  expiresAt?: Date | null;
   requestMetadata?: Record<string, unknown>;
   callbackUrl?: string;
   callbackMetadata?: Record<string, unknown>;
@@ -165,6 +176,7 @@ export async function registerFileKeyIntent(input: {
           claimedHash: input.fileKey.hash ?? existing.claimedHash,
           metadata: mergedMetadata,
           callbackMetadata: mergedCallbackMetadata,
+          expiresAt: input.expiresAt ?? existing.expiresAt,
         })
         .where(eq(fileKeys.id, existing.id))
         .returning();
@@ -192,6 +204,7 @@ export async function registerFileKeyIntent(input: {
         claimedMimeType: input.fileKey.mimeType ?? null,
         claimedHash: input.fileKey.hash ?? null,
         status: "pending",
+        expiresAt: input.expiresAt,
       })
       .returning();
 

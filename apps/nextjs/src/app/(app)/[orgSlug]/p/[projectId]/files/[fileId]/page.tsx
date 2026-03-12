@@ -31,7 +31,6 @@ import { toast } from "sonner";
 
 import { Badge } from "@silo-storage/ui/components/badge";
 import { Button } from "@silo-storage/ui/components/button";
-import { FileStatusBadge } from "@/components/file-status-badge";
 import {
   Card,
   CardContent,
@@ -58,6 +57,7 @@ import {
 import { Skeleton } from "@silo-storage/ui/components/skeleton";
 
 import { getDownloadUrl } from "@/actions/file";
+import { FileStatusBadge } from "@/components/file-status-badge";
 import { useOrganization } from "@/hooks/use-organization";
 import { useTRPC } from "@/trpc/react";
 
@@ -133,7 +133,12 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
   const trpc = useTRPC();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { fileId, projectId, orgSlug, environment: environmentSlug } = use(params);
+  const {
+    fileId,
+    projectId,
+    orgSlug,
+    environment: environmentSlug,
+  } = use(params);
   const { organization } = useOrganization();
   const organizationId = organization?.id ?? "";
 
@@ -293,6 +298,13 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
   const FileIcon = getFileIcon(mimeType);
   const effectiveAccess: AccessValue = fileKey.isPublic ? "public" : "private";
   const isPublic = fileKey.isPublic;
+  const expiresAt = fileKey.expiresAt
+    ? new Date(fileKey.expiresAt)
+    : null;
+  const isExpired =
+    !!expiresAt &&
+    !Number.isNaN(expiresAt.getTime()) &&
+    expiresAt.getTime() <= Date.now();
 
   return (
     <>
@@ -349,7 +361,9 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                   <HardDrive className="text-muted-foreground h-4 w-4" />
                   <span className="text-muted-foreground">Size</span>
                 </div>
-                <span className="text-sm font-medium">{formatFileSize(size)}</span>
+                <span className="text-sm font-medium">
+                  {formatFileSize(size)}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
@@ -399,6 +413,20 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                 </div>
                 <span className="text-sm">{formatDate(fileKey.createdAt)}</span>
               </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <Calendar className="text-muted-foreground h-4 w-4" />
+                  <span className="text-muted-foreground">Expires</span>
+                </div>
+                {expiresAt ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{formatDate(expiresAt)}</span>
+                    {isExpired && <Badge variant="destructive">Expired</Badge>}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground text-sm">Never</span>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -431,7 +459,9 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                   variant="outline"
                   size="sm"
                   className="w-full justify-between font-mono text-xs"
-                  onClick={() => copyToClipboard(fileKey.accessKey, "Access Key")}
+                  onClick={() =>
+                    copyToClipboard(fileKey.accessKey, "Access Key")
+                  }
                 >
                   {fileKey.accessKey}
                   <Copy className="h-3 w-3" />
@@ -501,8 +531,12 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
 
         <Card className="border-red-200 dark:border-red-900">
           <CardHeader>
-            <CardTitle className="text-base text-red-600">Danger Zone</CardTitle>
-            <CardDescription>Irreversible actions for this file</CardDescription>
+            <CardTitle className="text-base text-red-600">
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              Irreversible actions for this file
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {status === "pending" && (
@@ -530,7 +564,10 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
                   Permanently delete this file and all associated data
                 </p>
               </div>
-              <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
+              <Button
+                variant="destructive"
+                onClick={() => setShowDeleteDialog(true)}
+              >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete File
               </Button>
@@ -570,7 +607,10 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showMarkFailedDialog} onOpenChange={setShowMarkFailedDialog}>
+      <Dialog
+        open={showMarkFailedDialog}
+        onOpenChange={setShowMarkFailedDialog}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Mark Upload as Failed</DialogTitle>

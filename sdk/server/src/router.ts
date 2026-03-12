@@ -4,6 +4,7 @@ import type {
   UploadCore,
   UploadFileInput,
 } from "@silo-storage/sdk-core";
+import ms from "ms";
 
 import { buildInternalCallbackMetadata } from "./envelope";
 
@@ -17,7 +18,24 @@ export type SiloRouteConfig = Record<string, SiloRouteFileConstraint>;
 
 export interface SiloRouteOptions {
   isPublic?: boolean;
+  fileExpiry?: SiloFileExpiryInput;
 }
+
+export type SiloFileExpiryInput =
+  | {
+      ttl: string | number;
+    }
+  | {
+      expiresAt: string | Date | null;
+    };
+
+type CoreFileExpiryInput =
+  | {
+      ttlSeconds: number;
+    }
+  | {
+      expiresAt: string | Date | null;
+    };
 
 export interface SiloRouteMiddlewareArgs<
   TRequest,
@@ -33,7 +51,10 @@ export interface SiloRouteMiddlewareArgs<
   routeSlug: string;
 }
 
-export interface SiloOnUploadCompleteArgs<TMiddlewareData, TContext = undefined> {
+export interface SiloOnUploadCompleteArgs<
+  TMiddlewareData,
+  TContext = undefined,
+> {
   metadata: TMiddlewareData;
   context?: TContext;
   file: {
@@ -175,38 +196,41 @@ export type RouteOutputBySlug<
 export type RouteInputBySlug<
   TRouter extends AnyFileRouter,
   TRouteSlug extends RouteSlug<TRouter>,
-> = TRouter[TRouteSlug] extends SiloFileRoute<
-  unknown,
-  unknown,
-  SiloRouteConfig,
-  Record<string, unknown>,
-  unknown,
-  infer TInput
->
-  ? TInput
-  : never;
+> =
+  TRouter[TRouteSlug] extends SiloFileRoute<
+    unknown,
+    unknown,
+    SiloRouteConfig,
+    Record<string, unknown>,
+    unknown,
+    infer TInput
+  >
+    ? TInput
+    : never;
 
-export type InferMiddlewareData<TRoute> = TRoute extends SiloFileRoute<
-  unknown,
-  unknown,
-  SiloRouteConfig,
-  infer TMiddlewareData,
-  unknown,
-  unknown
->
-  ? TMiddlewareData
-  : never;
+export type InferMiddlewareData<TRoute> =
+  TRoute extends SiloFileRoute<
+    unknown,
+    unknown,
+    SiloRouteConfig,
+    infer TMiddlewareData,
+    unknown,
+    unknown
+  >
+    ? TMiddlewareData
+    : never;
 
-export type InferRouteOutput<TRoute> = TRoute extends SiloFileRoute<
-  unknown,
-  unknown,
-  SiloRouteConfig,
-  Record<string, unknown>,
-  infer TOutput,
-  unknown
->
-  ? TOutput
-  : never;
+export type InferRouteOutput<TRoute> =
+  TRoute extends SiloFileRoute<
+    unknown,
+    unknown,
+    SiloRouteConfig,
+    Record<string, unknown>,
+    infer TOutput,
+    unknown
+  >
+    ? TOutput
+    : never;
 
 function createRouteBuilder<
   TRequest,
@@ -234,17 +258,14 @@ function createRouteBuilder<
         TContext,
         TInput
       >,
-    ) => createRouteBuilder<
-      TRequest,
-      TContext,
-      TRouteConfig,
-      TNextMiddlewareData,
-      TInput
-    >(
-      routeConfig,
-      routeOptions,
-      nextMiddleware,
-    ),
+    ) =>
+      createRouteBuilder<
+        TRequest,
+        TContext,
+        TRouteConfig,
+        TNextMiddlewareData,
+        TInput
+      >(routeConfig, routeOptions, nextMiddleware),
     onUploadComplete: <TOutput>(
       onUploadComplete: OnUploadCompleteFn<TMiddlewareData, TOutput, TContext>,
     ) => ({
@@ -281,6 +302,36 @@ function toRecord(value: unknown, message: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function normalizeFileExpiry(
+  fileExpiry: SiloFileExpiryInput,
+): CoreFileExpiryInput {
+  if ("ttl" in fileExpiry) {
+    if (typeof fileExpiry.ttl === "number") {
+      if (!Number.isFinite(fileExpiry.ttl) || fileExpiry.ttl <= 0) {
+        throw new Error("fileExpiry.ttl number must be a positive value");
+      }
+      return {
+        ttlSeconds: Math.ceil(fileExpiry.ttl / 1000),
+      };
+    }
+
+    const ttlMs = ms(fileExpiry.ttl);
+    if (typeof ttlMs !== "number" || ttlMs <= 0) {
+      throw new Error(
+        `Invalid fileExpiry.ttl value "${fileExpiry.ttl}". Example: "1 day" or "7d"`,
+      );
+    }
+
+    return {
+      ttlSeconds: Math.ceil(ttlMs / 1000),
+    };
+  }
+
+  return {
+    expiresAt: fileExpiry.expiresAt,
+  };
+}
+
 export interface RegisterRouteUploadInput<
   TRouter extends FileRouter<TRequest, TContext>,
   TRouteSlug extends keyof TRouter & string,
@@ -296,6 +347,7 @@ export interface RegisterRouteUploadInput<
   files: UploadFileInput[];
   callbackUrl?: string;
   requestMetadata?: Record<string, unknown>;
+  fileExpiry?: SiloFileExpiryInput;
   dev?: boolean;
   expiresIn?: number;
   protocol?: "http" | "https";
@@ -350,11 +402,24 @@ export async function registerRouteUpload<
     middlewareData,
   });
 
-  const registerResult = await input.core.registerUploadBatch({
+  const resolvedFileExpiry = input.fileExpiry
+    ? normalizeFileExpiry(input.fileExpiry)
+    : route.routeOptions?.fileExpiry
+      ? normalizeFileExpiry(route.routeOptions.fileExpiry)
+      : undefined;
+
+  const registerUploadBatchWithExpiry = input.core.registerUploadBatch as (
+    value: Parameters<UploadCore["registerUploadBatch"]>[0] & {
+      fileExpiry?: CoreFileExpiryInput;
+    },
+  ) => ReturnType<UploadCore["registerUploadBatch"]>;
+
+  const registerResult = await registerUploadBatchWithExpiry({
     files,
     callbackUrl: input.callbackUrl,
     callbackMetadata,
     requestMetadata: input.requestMetadata,
+    fileExpiry: resolvedFileExpiry,
     dev: input.dev,
     expiresIn: input.expiresIn,
     protocol: input.protocol,
@@ -374,9 +439,9 @@ export interface PrepareRouteUploadInput<
   TRequest,
   TContext = undefined,
 > extends Omit<
-    RegisterRouteUploadInput<TRouter, TRouteSlug, TRequest, TContext>,
-    "files"
-  > {
+  RegisterRouteUploadInput<TRouter, TRouteSlug, TRequest, TContext>,
+  "files"
+> {
   file: UploadFileInput;
 }
 
@@ -407,18 +472,19 @@ export async function prepareRouteUpload<
     throw new Error("registerRouteUpload did not return a file");
   }
 
-  const prepareResult = registered.registerResult.mode === "development"
-    ? {
-        mode: "development" as const,
-        file: firstFile,
-        stream: registered.registerResult.stream,
-        response: registered.registerResult.response,
-      }
-    : {
-        mode: "production" as const,
-        file: firstFile,
-        registerResponse: registered.registerResult.registerResponse,
-      };
+  const prepareResult =
+    registered.registerResult.mode === "development"
+      ? {
+          mode: "development" as const,
+          file: firstFile,
+          stream: registered.registerResult.stream,
+          response: registered.registerResult.response,
+        }
+      : {
+          mode: "production" as const,
+          file: firstFile,
+          registerResponse: registered.registerResult.registerResponse,
+        };
 
   return {
     routeSlug: registered.routeSlug,
@@ -430,10 +496,7 @@ export async function prepareRouteUpload<
   };
 }
 
-export type RouteRegisterInput = Omit<
-  PrepareUploadInput,
-  "callbackMetadata"
->;
+export type RouteRegisterInput = Omit<PrepareUploadInput, "callbackMetadata">;
 
 export type RouterConfig<TRouter extends AnyFileRouter> = {
   [TRouteSlug in RouteSlug<TRouter>]: RouteConfigBySlug<TRouter, TRouteSlug>;

@@ -19,7 +19,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"],
+      "@/*": ["./src/*"],
       "@silo-storage/sdk-core": ["../../sdk/core/src/index.ts"],
       "@silo-storage/sdk-next": ["../../sdk/next/src/index.ts"],
       "@silo-storage/sdk-react": ["../../sdk/react/src/index.ts"],
