@@ -144,9 +144,9 @@ export function ProjectGeneralSettings({
 
       <Card className="flex-1">
         <CardHeader>
-          <CardTitle>Default File Access</CardTitle>
+          <CardTitle>Upload Defaults</CardTitle>
           <CardDescription>
-            Set the default access level for newly uploaded files
+            Configure default access and pending upload timeout behavior
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

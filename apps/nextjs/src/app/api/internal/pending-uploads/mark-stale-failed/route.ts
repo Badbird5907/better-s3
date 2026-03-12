@@ -82,6 +82,7 @@ export async function POST(request: Request) {
           if (
             error.code === "ALREADY_COMPLETED" ||
             error.code === "ALREADY_FAILED" ||
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             error.code === "NOT_FOUND"
           ) {
             skipped += 1;
