@@ -108,13 +108,11 @@ export const apiKeyRouter = {
         projectId: key.projectId,
         organizationId: key.organizationId,
         environmentId: key.environmentId,
-        environment: key.environment
-          ? {
-              id: key.environment.id,
-              name: key.environment.name,
-              type: key.environment.type,
-            }
-          : null,
+        environment: {
+          id: key.environment.id,
+          name: key.environment.name,
+          type: key.environment.type,
+        },
         expiresAt: key.expiresAt,
         lastUsedAt: key.lastUsedAt,
         createdAt: key.createdAt,
@@ -212,16 +210,16 @@ export const apiKeyRouter = {
       });
 
       return {
-        id: newKey?.id,
-        name: newKey?.name,
+        id: newKey.id,
+        name: newKey.name,
         key: fullKey,
         signingSecret,
-        keyPrefix: newKey?.keyPrefix,
-        environmentId: newKey?.environmentId,
+        keyPrefix: newKey.keyPrefix,
+        environmentId: newKey.environmentId,
         ingestServer,
         siloToken,
-        expiresAt: newKey?.expiresAt,
-        createdAt: newKey?.createdAt,
+        expiresAt: newKey.expiresAt,
+        createdAt: newKey.createdAt,
       };
     }),
 

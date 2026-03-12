@@ -65,7 +65,7 @@ export function CreateApiKeyDialog({
       onSuccess: (data) => {
         setCreatedKey(data.key);
         setCreatedSigningSecret(data.signingSecret);
-        setCreatedSiloToken(data.siloToken ?? null);
+        setCreatedSiloToken(data.siloToken);
         onCreated?.();
       },
       onError: (error: { message?: string }) => {
