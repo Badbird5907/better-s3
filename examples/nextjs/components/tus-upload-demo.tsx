@@ -51,6 +51,9 @@ type UploadState =
   | "success"
   | "error";
 
+const DEFAULT_CHUNK_SIZE_MB = 8;
+const MIN_CHUNK_SIZE_MB = 1;
+
 export function TusUploadDemo() {
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [state, setState] = React.useState<UploadState>("idle");
@@ -58,11 +61,22 @@ export function TusUploadDemo() {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [lastAccessKey, setLastAccessKey] = React.useState<string | null>(null);
   const [lastFileKeyId, setLastFileKeyId] = React.useState<string | null>(null);
+  const [chunkSizeMbInput, setChunkSizeMbInput] = React.useState(
+    String(DEFAULT_CHUNK_SIZE_MB),
+  );
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const uploadRef = React.useRef<tus.Upload | null>(null);
   const activeUploadIdRef = React.useRef<string | null>(null);
   const committedBytesRef = React.useRef(0);
+  const chunkSizeMb = React.useMemo(() => {
+    const parsed = Number.parseInt(chunkSizeMbInput, 10);
+    if (!Number.isFinite(parsed) || parsed < MIN_CHUNK_SIZE_MB) {
+      return DEFAULT_CHUNK_SIZE_MB;
+    }
+    return parsed;
+  }, [chunkSizeMbInput]);
+  const chunkSizeBytes = chunkSizeMb * 1024 * 1024;
 
   React.useEffect(() => {
     return () => {
@@ -167,7 +181,7 @@ export function TusUploadDemo() {
         endpoint: registration.uploadUrl,
         uploadSize: file.size,
         // Finite chunks improve checkpoint frequency for pause/resume UX.
-        chunkSize: 50 * 1024 * 1024,
+        chunkSize: chunkSizeBytes,
         retryDelays: [0, 1000, 3000, 5000],
         metadata: {
           filename: file.name,
@@ -286,6 +300,32 @@ export function TusUploadDemo() {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
+        <label className="flex max-w-xs flex-col gap-1 text-sm">
+          <span className="text-muted-foreground">Chunk size (MB)</span>
+          <input
+            type="number"
+            min={MIN_CHUNK_SIZE_MB}
+            step={1}
+            value={chunkSizeMbInput}
+            onChange={(event) => {
+              setChunkSizeMbInput(event.target.value);
+            }}
+            onBlur={() => {
+              setChunkSizeMbInput(String(chunkSizeMb));
+            }}
+            className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            disabled={
+              state === "uploading" ||
+              state === "paused" ||
+              state === "preparing" ||
+              state === "finalizing"
+            }
+          />
+        </label>
+        <p className="text-muted-foreground text-xs">
+          Uploads use {chunkSizeMb} MB chunks ({chunkSizeBytes.toLocaleString()}{" "}
+          bytes each).
+        </p>
         <input
           ref={fileInputRef}
           type="file"
