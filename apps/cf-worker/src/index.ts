@@ -24,6 +24,7 @@ import {
   handleTusPatch,
 } from "./routes/tus-handlers";
 import { runExpiryCleanup } from "./services/expiry-cleanup";
+import { runPendingUploadCleanup } from "./services/pending-upload-cleanup";
 import { deletePrefixChunk } from "./services/r2/delete-prefix";
 import { createErrorResponse } from "./utils/errors";
 
@@ -98,6 +99,7 @@ export default {
     env: Bindings,
   ): Promise<void> {
     await runExpiryCleanup(env);
+    await runPendingUploadCleanup(env);
   },
   async queue(
     batch: MessageBatch<DeletePrefixQueueMessage>,

@@ -36,6 +36,9 @@ export const projects = pgTable("projects", {
   defaultFileAccess: fileAccessTypes("default_file_access")
     .notNull()
     .default("private"),
+  pendingUploadFailAfterHours: integer("pending_upload_fail_after_hours")
+    .notNull()
+    .default(24),
   parentOrganizationId: text("parent_organization_id").references(
     () => auth.organizations.id,
     { onDelete: "cascade" },

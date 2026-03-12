@@ -58,6 +58,12 @@ export const projectRouter = {
         id: z.string(),
         name: z.string().min(1).max(100).optional(),
         defaultFileAccess: z.enum(fileAccessTypes.enumValues).optional(),
+        pendingUploadFailAfterHours: z
+          .number()
+          .int()
+          .min(1)
+          .max(720)
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -81,6 +87,7 @@ export const projectRouter = {
         id: input.id,
         name: input.name,
         defaultFileAccess: input.defaultFileAccess,
+        pendingUploadFailAfterHours: input.pendingUploadFailAfterHours,
       });
     }),
 } satisfies TRPCRouterRecord;

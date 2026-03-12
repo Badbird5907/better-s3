@@ -31,6 +31,7 @@ interface ProjectGeneralSettingsProps {
     name: string;
     slug: string;
     defaultFileAccess: "public" | "private";
+    pendingUploadFailAfterHours: number;
   };
   organizationId: string;
 }
@@ -44,6 +45,8 @@ export function ProjectGeneralSettings({
   const [defaultFileAccess, setDefaultFileAccess] = React.useState(
     project.defaultFileAccess,
   );
+  const [pendingUploadFailAfterHours, setPendingUploadFailAfterHours] =
+    React.useState(project.pendingUploadFailAfterHours);
 
   const updateMutation = useMutation(
     trpc.project.update.mutationOptions({
@@ -63,11 +66,15 @@ export function ProjectGeneralSettings({
   );
 
   const handleSave = () => {
-    if (defaultFileAccess !== project.defaultFileAccess) {
+    if (
+      defaultFileAccess !== project.defaultFileAccess ||
+      pendingUploadFailAfterHours !== project.pendingUploadFailAfterHours
+    ) {
       updateMutation.mutate({
         id: project.id,
         organizationId,
         defaultFileAccess,
+        pendingUploadFailAfterHours,
       });
     }
   };
@@ -78,10 +85,12 @@ export function ProjectGeneralSettings({
     });
   };
 
-  const hasChanges = defaultFileAccess !== project.defaultFileAccess;
+  const hasChanges =
+    defaultFileAccess !== project.defaultFileAccess ||
+    pendingUploadFailAfterHours !== project.pendingUploadFailAfterHours;
 
   return (
-    <div className="flex flex-row gap-6 w-full">
+    <div className="flex w-full flex-row gap-6">
       <Card className="flex-1">
         <CardHeader>
           <CardTitle>Project Information</CardTitle>
@@ -161,6 +170,32 @@ export function ProjectGeneralSettings({
               {defaultFileAccess === "private"
                 ? "Files require a signed URL to access"
                 : "Files can be accessed directly without authentication"}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="pending-upload-fail-after-hours">
+              Auto-fail Pending Uploads (hours)
+            </Label>
+            <Input
+              id="pending-upload-fail-after-hours"
+              type="number"
+              min={1}
+              max={720}
+              step={1}
+              value={pendingUploadFailAfterHours}
+              onChange={(event) => {
+                const nextValue = Number.parseInt(event.target.value, 10);
+                if (Number.isNaN(nextValue)) return;
+                setPendingUploadFailAfterHours(
+                  Math.min(720, Math.max(1, nextValue)),
+                );
+              }}
+              className="w-[200px]"
+            />
+            <p className="text-muted-foreground text-xs">
+              Pending uploads older than this are automatically marked as
+              failed.
             </p>
           </div>
 

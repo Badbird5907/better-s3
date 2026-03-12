@@ -1,4 +1,5 @@
 import type { Db } from "@silo-storage/db/client";
+
 import { eq } from "@silo-storage/db";
 import { projectEnvironments, projects } from "@silo-storage/db/schema";
 
@@ -74,12 +75,15 @@ export async function updateProject(
     id: string;
     name?: string;
     defaultFileAccess?: "public" | "private";
+    pendingUploadFailAfterHours?: number;
   },
 ) {
   const updates: Partial<typeof projects.$inferInsert> = {};
   if (input.name !== undefined) updates.name = input.name;
   if (input.defaultFileAccess !== undefined)
     updates.defaultFileAccess = input.defaultFileAccess;
+  if (input.pendingUploadFailAfterHours !== undefined)
+    updates.pendingUploadFailAfterHours = input.pendingUploadFailAfterHours;
 
   if (Object.keys(updates).length === 0) {
     return db.query.projects.findFirst({

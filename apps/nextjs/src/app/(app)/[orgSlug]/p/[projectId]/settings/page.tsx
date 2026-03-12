@@ -1,7 +1,12 @@
 "use client";
 
 import { use } from "react";
-import { notFound, usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  notFound,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { Skeleton } from "@silo-storage/ui/components/skeleton";
@@ -65,6 +70,8 @@ export default function ProjectSettingsPage({
             name: projectQuery.data.name,
             slug: projectQuery.data.slug,
             defaultFileAccess: projectQuery.data.defaultFileAccess,
+            pendingUploadFailAfterHours:
+              projectQuery.data.pendingUploadFailAfterHours,
           }}
           organizationId={organizationId}
         />

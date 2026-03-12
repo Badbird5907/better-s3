@@ -17,6 +17,8 @@ export interface Bindings {
   TUS_EXPIRATION_HOURS: string;
   EXPIRY_CLEANUP_BATCH_SIZE: string;
   EXPIRY_CLEANUP_MAX_BATCHES: string;
+  PENDING_UPLOAD_CLEANUP_BATCH_SIZE: string;
+  PENDING_UPLOAD_CLEANUP_MAX_BATCHES: string;
 }
 
 export interface Variables {
